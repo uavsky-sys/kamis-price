@@ -459,19 +459,19 @@ const ITEMS = {
   '700': [{c:'711',n:'밤'},{c:'712',n:'잣'},{c:'721',n:'표고버섯'},{c:'722',n:'송이버섯'}],
 };
 const NO_KAMIS = ['블루베리','복분자'];
-// 도매시장 고정 품목 목록 (데이터 없어도 항상 표시)
-const WHS_ITEMS = [
-  '사과','배','복숭아','포도','감귤','한라봉','수박','참외','딸기','블루베리','체리',
-  '바나나','키위','오렌지','레몬','망고','파인애플',
-  '배추','양배추','상추','시금치','깻잎','미나리','쑥갓',
-  '무','당근','양파','마늘','대파','쪽파','생강',
-  '오이','호박','토마토','방울토마토','파프리카','고추','풋고추',
-  '느타리버섯','팽이버섯','새송이버섯','표고버섯',
-  '감자','고구마','옥수수',
-  '한우','돼지고기','닭고기','계란',
-  '갈치','고등어','명태','오징어','새우','굴','김','미역',
-  '밤','잣','도라지','더덕',
+// 도매시장 고정 부류/품목 목록 (데이터 없어도 항상 표시)
+const WHS_CATS = [
+  { code:'100', name:'식량작물', items:['쌀','찹쌀','보리','콩','팥','옥수수','감자','고구마'] },
+  { code:'200', name:'채소류',   items:['배추','양배추','상추','시금치','깻잎','미나리','쑥갓','무','당근','양파','마늘','대파','쪽파','생강','오이','호박','토마토','방울토마토','파프리카','고추','풋고추','느타리버섯','팽이버섯','새송이버섯','표고버섯'] },
+  { code:'300', name:'특용작물', items:['참깨','들깨','땅콩','밤','잣','호두'] },
+  { code:'400', name:'과일류',   items:['사과','배','복숭아','포도','감귤','한라봉','수박','참외','딸기','블루베리','체리','바나나','키위','오렌지','레몬','망고','파인애플'] },
+  { code:'500', name:'화훼류',   items:['장미','국화','백합','카네이션','거베라'] },
+  { code:'600', name:'약용작물', items:['도라지','더덕','생강','당귀','황기','천궁'] },
+  { code:'700', name:'수산물',   items:['갈치','고등어','명태','오징어','새우','굴','전복','홍합','김','미역','다시마'] },
+  { code:'800', name:'축산물',   items:['한우','돼지고기','닭고기','계란','오리고기'] },
 ];
+// 편의 조회용 평면 목록
+const WHS_ITEMS = WHS_CATS.flatMap(c => c.items);
 const CORS_PROXIES = [
   url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
   url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
@@ -490,6 +490,7 @@ let selGrade  = '';
 let selSort   = 'price-desc';
 let selMarket = '110';
 let selCorps  = [];   // 다중 선택
+let selWhsCat = '';   // WHS 모드 부류 코드
 let rawData   = [];
 let allData   = [];
 let whlData   = [];
@@ -559,7 +560,7 @@ function saveFavorite(slot) {
   favorites[slot] = {
     date:selDate, cat:selCat, item:selItem,
     kind:selKind, grade:selGrade, sort:selSort,
-    market:selMarket, corps:selCorps.slice(),
+    market:selMarket, corps:selCorps.slice(), whsCat:selWhsCat,
     label:makeFavLabel(),
   };
   localStorage.setItem('kamis_favs', JSON.stringify(favorites));
@@ -572,6 +573,7 @@ function loadFavorite(slot) {
   selDate = fav.date; selCat = fav.cat; selItem = fav.item;
   selKind = fav.kind; selGrade = fav.grade; selSort = fav.sort || 'price-desc';
   selMarket = fav.market || '110'; selCorps = fav.corps || (fav.corp ? [fav.corp] : []);
+  selWhsCat = fav.whsCat || '';
   document.getElementById('date-input-hidden').value = selDate;
   setSort(selSort);
   updatePanel();
@@ -628,9 +630,9 @@ function updatePanel() {
 
   // 분류/품목/품종: 항상 활성 (WHS 모드에서는 whlData 필터링)
   const catName  = CATS.find(c=>c.code===selCat)?.name || '전체';
+  const whsCatName = WHS_CATS.find(c=>c.code===selWhsCat)?.name || '전체';
   const itemName = isWhs ? (selItem || '전체') : (getItemName(selItem) || (selItem || '전체'));
-  const whsCnt   = isWhs ? whlData.length : 0;
-  document.getElementById('fb-cat').textContent  = isWhs ? (selItem ? selItem : '전체') : catName;
+  document.getElementById('fb-cat').textContent  = isWhs ? whsCatName : catName;
   document.getElementById('fb-cat-cnt').textContent = isWhs ? (whlData.length ? `(${whlData.length})` : '') : (rawData.length ? `(${rawData.length})` : '');
   document.getElementById('fb-item').textContent = itemName;
   const filteredWhl = isWhs && selItem ? whlData.filter(d=>d.item===selItem) : whlData;
@@ -690,27 +692,44 @@ function openSheet(type) {
       options.push({val:c, label:c, cnt:cnt||null, active:selCorps.includes(c)});
     });
   } else if (type === 'cat') {
-    title = '품목 선택';
+    title = '부류 선택';
     if (isWhs) {
-      // WHS: 실제 데이터 있으면 우선, 없으면 고정 목록
-      const dynItems = [...new Set(whlData.map(d=>d.item))].filter(Boolean).sort();
-      const items = dynItems.length ? dynItems : WHS_ITEMS;
-      options = [{val:'', label:'전체', cnt:whlData.length||null, active:selItem===''}];
-      items.forEach(i => {
-        const cnt = whlData.filter(d=>d.item===i).length;
-        options.push({val:i, label:i, cnt:cnt||null, active:selItem===i});
-      });
+      // WHS: 실제 데이터에서 부류 추출, 없으면 고정 부류 목록
+      const dynCats = [...new Set(whlData.map(d=>d.cat))].filter(Boolean).sort();
+      if (dynCats.length) {
+        options = [{val:'', label:'전체', cnt:whlData.length||null, active:selWhsCat===''}];
+        dynCats.forEach(c => {
+          const cnt = whlData.filter(d=>d.cat===c).length;
+          options.push({val:c, label:c, cnt:cnt||null, active:selWhsCat===c});
+        });
+      } else {
+        options = [{val:'', label:'전체', cnt:null, active:selWhsCat===''}];
+        WHS_CATS.forEach(c => options.push({val:c.code, label:c.name, cnt:null, active:selWhsCat===c.code}));
+      }
     } else {
       options = CATS.map(c=>({val:c.code, label:c.name, cnt:null, active:selCat===c.code}));
     }
   } else if (type === 'item') {
     title = '품목 선택';
     if (isWhs) {
+      // 선택된 부류에 해당하는 품목만 표시
       const dynItems = [...new Set(whlData.map(d=>d.item))].filter(Boolean).sort();
-      const items = dynItems.length ? dynItems : WHS_ITEMS;
-      options = [{val:'', label:'전체', cnt:whlData.length||null, active:selItem===''}];
+      let items;
+      if (dynItems.length) {
+        items = selWhsCat ? dynItems.filter(i => {
+          const cat = WHS_CATS.find(c=>c.code===selWhsCat);
+          return cat ? cat.items.includes(i) : true;
+        }) : dynItems;
+      } else {
+        const cat = WHS_CATS.find(c=>c.code===selWhsCat);
+        items = cat ? cat.items : WHS_ITEMS;
+      }
+      const base = selWhsCat && whlData.length
+        ? whlData.filter(d => { const c = WHS_CATS.find(x=>x.code===selWhsCat); return c ? c.items.includes(d.item) : true; })
+        : whlData;
+      options = [{val:'', label:'전체', cnt:base.length||null, active:selItem===''}];
       items.forEach(i => {
-        const cnt = whlData.filter(d=>d.item===i).length;
+        const cnt = base.filter(d=>d.item===i).length;
         options.push({val:i, label:i, cnt:cnt||null, active:selItem===i});
       });
     } else {
@@ -769,12 +788,12 @@ function selectSheetItem(val) {
   closeSheet();
   if (curSheet === 'market') {
     selMarket = val; selCorps = [];
-    selCat = 'WHS'; selItem = ''; selKind = ''; selGrade = '';
+    selCat = 'WHS'; selItem = ''; selKind = ''; selGrade = ''; selWhsCat = '';
     doSearch();
   } else if (curSheet === 'cat') {
     const isWhs = selCat === 'WHS';
     if (isWhs) {
-      selItem = val; selKind = '';
+      selWhsCat = val; selItem = ''; selKind = '';
       filterWholesale(); updatePanel();
     } else {
       if (selCat === val) return;
@@ -860,6 +879,10 @@ function removeCorpChip(name) {
 function filterWholesale() {
   let data = whlData;
   if (selCorps.length) data = data.filter(d=>selCorps.includes(d.corp));
+  if (selWhsCat) {
+    const cat = WHS_CATS.find(c=>c.code===selWhsCat);
+    if (cat) data = data.filter(d=>cat.items.includes(d.item));
+  }
   if (selItem) data = data.filter(d=>d.item===selItem);
   if (selKind) data = data.filter(d=>d.kind===selKind);
   const sorted = [...data].sort((a,b)=>{
