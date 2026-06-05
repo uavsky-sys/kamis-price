@@ -696,7 +696,25 @@ function renderStats(data) {
 
 function renderResults(data) {
   if (!data.length) {
-    document.getElementById('result-area').innerHTML = '<div class="empty"><div class="icon">📭</div><div>조건에 맞는 데이터가 없습니다.</div></div>';
+    const itemSel = document.getElementById('item');
+    const itemName = itemSel.options[itemSel.selectedIndex]?.text || '';
+    const isBlueberry = itemName.includes('블루베리');
+    const msg = isBlueberry
+      ? `<div class="empty">
+          <div class="icon">🫐</div>
+          <div style="font-size:14px;font-weight:600;margin-bottom:8px">블루베리 경락 데이터 없음</div>
+          <div style="font-size:12px;line-height:1.8;color:#6c757d">
+            블루베리는 공영도매시장 경매 대상 품목이 아닙니다.<br>
+            아래 대체 경로를 이용하세요.
+          </div>
+          <div style="margin-top:14px;display:flex;flex-wrap:wrap;gap:8px;justify-content:center">
+            <a href="https://at.agromarket.kr/users/price/retail/daily.do" target="_blank" style="padding:7px 14px;background:#e8f5ee;color:#2d7a4f;border:1px solid #b8dfc9;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none">🛒 KAMIS 소매가격</a>
+            <a href="https://at.agromarket.kr/users/price/wholesale/daily.do" target="_blank" style="padding:7px 14px;background:#e3f2fd;color:#1565c0;border:1px solid #90caf9;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none">🏪 aT 중도매인 판매정보</a>
+            <a href="https://www.kamis.or.kr" target="_blank" style="padding:7px 14px;background:#fff3e0;color:#e65100;border:1px solid #ffcc80;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none">📊 KAMIS 직접 검색</a>
+          </div>
+        </div>`
+      : '<div class="empty"><div class="icon">📭</div><div style="font-size:14px;font-weight:600;margin-bottom:6px">조건에 맞는 데이터가 없습니다.</div><div style="font-size:12px;color:#6c757d">날짜(평일)나 품목 조건을 변경해보세요.</div></div>';
+    document.getElementById('result-area').innerHTML = msg;
     document.getElementById('result-count').textContent = '';
     return;
   }
