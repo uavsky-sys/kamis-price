@@ -447,7 +447,7 @@ const CORS_PROXIES = [
 ];
 const KAMIS_BASE = 'https://www.kamis.or.kr/service/price/xml.do';
 
-let apiKey = localStorage.getItem('kamis_api_key') || '5e95b505-c3af-41cc-8d09-4b5a274d3db9';
+let apiKey = localStorage.getItem('kamis_api_key') || '';
 let apiId  = localStorage.getItem('kamis_api_id')  || '8314';
 let isDemoMode = false;
 let priceChart = null;
@@ -578,8 +578,13 @@ async function fetchKamisData() {
   if (!json.data?.item?.length) throw new Error('조회된 데이터가 없습니다. 날짜나 조건을 변경해보세요.');
 
   const gradeFilter = grade;
+  const itemSel = document.getElementById('item');
+  const selectedItemName = itemCode ? (itemSel.options[itemSel.selectedIndex]?.text || '').trim() : '';
+
   return json.data.item
     .filter(item => {
+      const name = (item.item_name || item.itemname || '').trim();
+      if (selectedItemName && name !== selectedItemName) return false;
       if (gradeFilter && item.rank !== gradeFilter) return false;
       return parseInt((item.dpr1||'0').replace(/,/g,'')) > 0;
     })
