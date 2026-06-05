@@ -354,6 +354,21 @@ const MARKETS = [
   {code:'260', name:'광주'},
   {code:'270', name:'창원'},
 ];
+// 시장별 도매법인 목록 (API 응답 법인명과 일치하도록 설정)
+const CORPS = {
+  '110': ['서울청과','중앙청과','한국청과','대아청과','동화청과','농협공판장'],
+  '111': ['강서청과','서울청과','농협공판장'],
+  '120': ['인천청과','농협공판장'],
+  '130': ['경기청과','수원농협공판장'],
+  '210': ['부산청과','부산공판장','농협공판장'],
+  '211': ['반여농산','부산청과'],
+  '220': ['대구청과','대구공판장','농협공판장'],
+  '230': ['전주청과','전주공판장'],
+  '240': ['대전청과','농협공판장'],
+  '250': ['충북청과','청주공판장'],
+  '260': ['광주청과','광주공판장','농협공판장'],
+  '270': ['경남청과','창원공판장'],
+};
 const ITEMS = {
   '':    [],
   '100': [{c:'111',n:'쌀'},{c:'112',n:'찹쌀'},{c:'121',n:'콩'},{c:'131',n:'팥'},{c:'141',n:'녹두'},{c:'151',n:'옥수수'},{c:'161',n:'고구마'},{c:'162',n:'감자'}],
@@ -547,9 +562,14 @@ function openSheet(type) {
     options = MARKETS.map(m=>({val:m.code, label:m.name, cnt:null, active:selMarket===m.code}));
   } else if (type === 'corp') {
     title = '도매법인 선택';
-    const corps = [...new Set(whlData.map(d=>d.corp))].filter(c=>c&&c!=='-').sort();
+    const staticCorps = CORPS[selMarket] || [];
+    const dynCorps = [...new Set(whlData.map(d=>d.corp))].filter(c=>c&&c!=='-');
+    const allCorps = [...new Set([...staticCorps, ...dynCorps])];
     options = [{val:'', label:'전체', cnt:whlData.length, active:selCorp===''}];
-    corps.forEach(c=>options.push({val:c, label:c, cnt:whlData.filter(d=>d.corp===c).length, active:selCorp===c}));
+    allCorps.forEach(c=>{
+      const cnt = whlData.filter(d=>d.corp===c).length;
+      options.push({val:c, label:c, cnt:cnt||null, active:selCorp===c});
+    });
   } else if (type === 'cat') {
     title = '분류 선택';
     options = CATS.map(c=>({val:c.code, label:c.name, cnt:null, active:selCat===c.code}));
