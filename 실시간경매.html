@@ -45,10 +45,6 @@ header .refresh-btn { background:rgba(255,255,255,0.2); border:none; color:#fff;
 .sub-btn.active { background:var(--green); color:#fff; border-color:var(--green); }
 
 /* 시장 필터 */
-.market-filter { padding:8px 10px; display:flex; gap:8px; overflow-x:auto; scrollbar-width:none; border-top:1px solid #f0f0f0; }
-.market-filter::-webkit-scrollbar { display:none; }
-.mkt-btn { flex:none; padding:4px 10px; border:1px solid var(--border); border-radius:4px; font-size:11px; color:var(--sub); background:#fff; cursor:pointer; white-space:nowrap; }
-.mkt-btn.active { background:var(--green); color:#fff; border-color:var(--green); }
 
 /* 날짜/정렬 바 */
 .ctrl-bar { background:#fff; padding:8px 14px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--border); font-size:12px; gap:8px; }
@@ -130,13 +126,12 @@ footer { text-align:center; padding:20px; font-size:11px; color:var(--sub); back
 <div class="filter-section">
   <div class="cat-tabs" id="cat-tabs"></div>
   <div class="sub-cats" id="sub-cats"></div>
-  <div class="market-filter" id="market-filter"></div>
 </div>
 
 <!-- 날짜/검색 -->
 <div class="ctrl-bar">
   <input type="date" id="search-date" />
-  <select class="sort-select" id="sort-sel">
+  <select class="sort-select" id="sort-sel" onchange="renderList(sortData(allData))">
     <option value="price-desc">가격 높은순</option>
     <option value="price-asc">가격 낮은순</option>
     <option value="item">품목명순</option>
@@ -179,26 +174,6 @@ const ITEMS = {
   '700': [{c:'711',n:'밤'},{c:'712',n:'잣'},{c:'721',n:'표고버섯'},{c:'722',n:'송이버섯'}],
 };
 
-const MARKETS = [
-  {code:'', name:'전국'},
-  {code:'110001', name:'서울가락'},
-  {code:'110002', name:'서울강서'},
-  {code:'230001', name:'인천삼산'},
-  {code:'310001', name:'수원'},
-  {code:'310004', name:'구리'},
-  {code:'250001', name:'광주각화'},
-  {code:'250002', name:'광주서부'},
-  {code:'210001', name:'부산엄궁'},
-  {code:'210002', name:'부산반여'},
-  {code:'220001', name:'대구북부'},
-  {code:'260001', name:'대전오정'},
-  {code:'430001', name:'청주'},
-  {code:'450001', name:'전주'},
-  {code:'460001', name:'순천'},
-  {code:'480001', name:'포항'},
-  {code:'490001', name:'창원팔용'},
-  {code:'490003', name:'진주'},
-];
 
 const NO_KAMIS = ['블루베리','복분자']; // 경락 데이터 없는 품목
 
@@ -212,7 +187,6 @@ let apiKey = localStorage.getItem('kamis_api_key') || '';
 let apiId  = localStorage.getItem('kamis_api_id')  || '8314';
 let selCat = '400';
 let selItem = '';
-let selMarket = '';
 let allData = [];
 
 // ===================== 초기화 =====================
@@ -226,8 +200,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   renderCatTabs();
   renderSubCats();
-  renderMarkets();
-
   if (apiKey) {
     document.getElementById('api-key-input').value = apiKey;
     document.getElementById('api-id-input').value = apiId;
@@ -258,6 +230,7 @@ function renderCatTabs() {
 function selectCat(code) {
   selCat = code; selItem = '';
   renderCatTabs(); renderSubCats();
+  doSearch();
 }
 
 function renderSubCats() {
@@ -273,17 +246,6 @@ function selectItem(code, name) {
   renderSubCats();
 }
 
-function renderMarkets() {
-  const el = document.getElementById('market-filter');
-  el.innerHTML = MARKETS.map(m => `
-    <button class="mkt-btn ${selMarket===m.code?'active':''}" onclick="selectMarket('${m.code}')">${m.name}</button>
-  `).join('');
-}
-
-function selectMarket(code) {
-  selMarket = code;
-  renderMarkets();
-}
 
 // ===================== 조회 =====================
 async function doSearch() {
