@@ -7,7 +7,7 @@
 <style>
 * { box-sizing:border-box; margin:0; padding:0; }
 :root {
-  --green:#1b6b2f; --green2:#2d8a4a;
+  --green:#1b6b2f; --green2:#2d8a4a; --green-lt:#e8f5ee;
   --border:#ddd; --text:#222; --sub:#666;
   --red:#c62828; --blue:#1565c0;
 }
@@ -16,8 +16,7 @@ body {
   font-family:'Malgun Gothic','맑은 고딕',sans-serif;
   background:#f5f5f5; color:var(--text);
   max-width:600px; margin:0 auto;
-  display:flex; flex-direction:column;
-  height:100vh; overflow:hidden;
+  display:flex; flex-direction:column; height:100vh; overflow:hidden;
 }
 
 /* 헤더 */
@@ -36,59 +35,8 @@ header h1 { font-size:15px; font-weight:700; }
 .api-banner input.id-input { max-width:70px; flex:none; }
 .api-banner button { padding:6px 12px; background:var(--green); color:#fff; border:none; border-radius:4px; font-size:12px; cursor:pointer; }
 
-/* 테이블 컨테이너 */
-.table-wrap {
-  flex:1; overflow-y:auto; overflow-x:hidden;
-  -webkit-overflow-scrolling:touch;
-  padding-bottom:96px;
-}
-
-/* 상태 바 */
-.status-bar {
-  background:#fff; padding:6px 12px;
-  display:flex; justify-content:space-between; align-items:center;
-  font-size:11px; color:var(--sub);
-  border-bottom:1px solid var(--border);
-  position:sticky; top:0; z-index:10;
-}
-.status-bar strong { color:var(--text); }
-
-/* 테이블 */
-table { width:100%; border-collapse:collapse; background:#fff; font-size:12px; }
-thead th {
-  position:sticky; top:29px; background:#fff; z-index:9;
-  border-bottom:2px solid var(--border);
-  padding:8px 4px; text-align:center; font-weight:700;
-  white-space:nowrap; color:var(--sub);
-}
-thead th:last-child { color:var(--red); }
-tbody tr { border-bottom:1px solid #f0f0f0; }
-tbody tr:active { background:#f9f9f9; }
-tbody td { padding:8px 4px; text-align:center; vertical-align:middle; line-height:1.4; }
-.td-item { font-weight:700; color:var(--text); font-size:13px; }
-.td-kind { font-size:11px; color:var(--sub); }
-.td-price { font-weight:700; color:var(--red); white-space:nowrap; font-size:13px; }
-.td-date { color:var(--sub); font-size:10px; white-space:nowrap; }
-.td-grade { font-size:11px; }
-
-/* 빈/로딩 */
-.empty-row td { padding:60px 20px; color:var(--sub); text-align:center; font-size:13px; }
-.spinner { width:28px; height:28px; border:3px solid #e0e0e0; border-top-color:var(--green); border-radius:50%; animation:spin 0.8s linear infinite; margin:0 auto 10px; }
-@keyframes spin { to { transform:rotate(360deg); } }
-
-/* 경락 없음 안내 */
-.no-data-box { margin:20px 12px; background:#fff8e1; border:1px solid #ffc107; border-radius:8px; padding:20px; text-align:center; }
-.no-data-box .icon { font-size:36px; margin-bottom:8px; }
-.no-data-box p { font-size:13px; color:#555; line-height:1.6; margin-bottom:12px; }
-.no-data-box a { display:inline-block; margin:4px; padding:6px 12px; background:#e8f5ee; color:var(--green); border-radius:6px; font-size:12px; font-weight:600; text-decoration:none; border:1px solid #b8dfc9; }
-
-/* ===== 하단 필터 패널 ===== */
-.filter-panel {
-  position:fixed; bottom:0;
-  left:50%; transform:translateX(-50%);
-  width:100%; max-width:600px;
-  background:var(--green); z-index:100;
-}
+/* ===== 상단 필터 패널 ===== */
+.filter-panel { background:var(--green); flex-shrink:0; }
 .filter-grid {
   display:grid;
   grid-template-columns:1fr 1fr 1fr auto;
@@ -103,7 +51,7 @@ tbody td { padding:8px 4px; text-align:center; vertical-align:middle; line-heigh
 }
 .filter-btn:active { background:rgba(0,0,0,0.15); }
 .fb-label { font-size:10px; color:rgba(255,255,255,0.65); display:block; margin-bottom:1px; }
-.fb-value { font-size:12px; font-weight:700; color:#fff; display:block; line-height:1.3; }
+.fb-value { font-size:12px; font-weight:700; color:#fff; display:block; line-height:1.3; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .fb-count { font-size:10px; color:rgba(255,255,255,0.8); }
 .search-btn {
   grid-row:1/3; grid-column:4;
@@ -114,11 +62,67 @@ tbody td { padding:8px 4px; text-align:center; vertical-align:middle; line-heigh
 }
 .search-btn:active { background:rgba(0,0,0,0.35); }
 
-/* ===== 보텀 시트 ===== */
-.sheet-overlay {
-  display:none; position:fixed; inset:0;
-  background:rgba(0,0,0,0.4); z-index:200;
+/* ===== 즐겨찾기 바 ===== */
+.favorites-bar { display:flex; background:#fff; border-bottom:1px solid var(--border); flex-shrink:0; }
+.fav-slot {
+  flex:1; position:relative; border-right:1px solid var(--border);
+  padding:6px 20px 6px 8px; cursor:pointer;
+  background:none; border-top:none; border-bottom:none; font-family:inherit;
+  text-align:left; min-width:0;
 }
+.fav-slot:last-child { border-right:none; }
+.fav-slot:active { background:#f5f5f5; }
+.fav-empty { color:#bbb; font-size:12px; display:flex; align-items:center; justify-content:center; gap:4px; padding:10px 4px; }
+.fav-star { font-size:13px; color:var(--green); display:block; margin-bottom:1px; }
+.fav-name { font-size:11px; font-weight:700; color:var(--text); display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fav-sub  { font-size:10px; color:var(--sub); display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fav-del {
+  position:absolute; top:4px; right:4px;
+  font-size:11px; color:#bbb; cursor:pointer;
+  background:none; border:none; padding:2px; line-height:1;
+}
+.fav-del:active { color:var(--red); }
+.fav-saved { background:var(--green-lt); }
+
+/* 테이블 영역 */
+.table-wrap { flex:1; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; }
+
+.status-bar {
+  background:#fff; padding:6px 12px;
+  display:flex; justify-content:space-between; align-items:center;
+  font-size:11px; color:var(--sub);
+  border-bottom:1px solid var(--border);
+  position:sticky; top:0; z-index:10;
+}
+.status-bar strong { color:var(--text); }
+
+table { width:100%; border-collapse:collapse; background:#fff; font-size:12px; }
+thead th {
+  position:sticky; top:29px; background:#fff; z-index:9;
+  border-bottom:2px solid var(--border);
+  padding:8px 4px; text-align:center; font-weight:700;
+  white-space:nowrap; color:var(--sub);
+}
+thead th:last-child { color:var(--red); }
+tbody tr { border-bottom:1px solid #f0f0f0; }
+tbody tr:active { background:#f9f9f9; }
+tbody td { padding:8px 4px; text-align:center; vertical-align:middle; line-height:1.4; }
+.td-item { font-weight:700; color:var(--text); font-size:13px; }
+.td-kind { font-size:11px; color:var(--sub); }
+.td-price { font-weight:700; color:var(--red); white-space:nowrap; font-size:13px; }
+.td-date  { color:var(--sub); font-size:10px; white-space:nowrap; }
+
+.empty-row td { padding:60px 20px; color:var(--sub); text-align:center; font-size:13px; }
+.spinner { width:28px; height:28px; border:3px solid #e0e0e0; border-top-color:var(--green); border-radius:50%; animation:spin 0.8s linear infinite; margin:0 auto 10px; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+.no-data-box { margin:20px 12px; background:#fff8e1; border:1px solid #ffc107; border-radius:8px; padding:20px; text-align:center; }
+.no-data-box .icon { font-size:36px; margin-bottom:8px; }
+.no-data-box p { font-size:13px; color:#555; line-height:1.6; margin-bottom:12px; }
+.no-data-box a { display:inline-block; margin:4px; padding:6px 12px; background:#e8f5ee; color:var(--green); border-radius:6px; font-size:12px; font-weight:600; text-decoration:none; border:1px solid #b8dfc9; }
+
+/* ===== 보텀 시트 ===== */
+.sheet-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:200; }
 .sheet-overlay.open { display:block; }
 .sheet {
   position:absolute; bottom:0;
@@ -133,7 +137,7 @@ tbody td { padding:8px 4px; text-align:center; vertical-align:middle; line-heigh
   position:sticky; top:0; background:#fff;
 }
 .sheet-title { font-size:15px; font-weight:700; }
-.sheet-close { background:none; border:none; font-size:20px; cursor:pointer; color:var(--sub); padding:0 4px; }
+.sheet-close { background:none; border:none; font-size:20px; cursor:pointer; color:var(--sub); }
 .sheet-item {
   display:flex; justify-content:space-between; align-items:center;
   padding:13px 16px; cursor:pointer;
@@ -144,7 +148,6 @@ tbody td { padding:8px 4px; text-align:center; vertical-align:middle; line-heigh
 .sheet-item .cnt { font-size:12px; color:var(--sub); }
 .sheet-item.active .cnt { color:var(--green); }
 
-/* 날짜 인풋 숨김 */
 #date-input-hidden { position:absolute; opacity:0; pointer-events:none; width:0; height:0; }
 </style>
 </head>
@@ -165,29 +168,7 @@ tbody td { padding:8px 4px; text-align:center; vertical-align:middle; line-heigh
   <a href="https://www.data.go.kr/tcs/dss/selectApiDataDetailView.do?publicDataPk=15100070" target="_blank" style="color:#1565c0;font-size:11px">🔗 data.go.kr에서 무료 발급</a>
 </div>
 
-<div class="table-wrap">
-  <div class="status-bar">
-    <span id="result-info">조회 조건을 설정하세요</span>
-    <span id="last-update"></span>
-  </div>
-  <table>
-    <thead>
-      <tr>
-        <th>날짜</th>
-        <th>품목</th>
-        <th>등급</th>
-        <th>규격</th>
-        <th>경락가</th>
-      </tr>
-    </thead>
-    <tbody id="table-body">
-      <tr class="empty-row"><td colspan="5">아래 조건을 선택하고 검색하세요</td></tr>
-    </tbody>
-  </table>
-  <div id="no-data-area"></div>
-</div>
-
-<!-- 하단 필터 패널 -->
+<!-- 상단 필터 패널 -->
 <div class="filter-panel">
   <div class="filter-grid">
     <button class="filter-btn" onclick="openSheet('date')">
@@ -220,6 +201,32 @@ tbody td { padding:8px 4px; text-align:center; vertical-align:middle; line-heigh
       <span class="fb-value" id="fb-sort">가격 높은순</span>
     </button>
   </div>
+</div>
+
+<!-- 즐겨찾기 바 -->
+<div class="favorites-bar" id="favorites-bar"></div>
+
+<!-- 테이블 -->
+<div class="table-wrap">
+  <div class="status-bar">
+    <span id="result-info">조건을 선택하고 검색하세요</span>
+    <span id="last-update"></span>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>날짜</th>
+        <th>품목</th>
+        <th>등급</th>
+        <th>규격</th>
+        <th>경락가</th>
+      </tr>
+    </thead>
+    <tbody id="table-body">
+      <tr class="empty-row"><td colspan="5">아래 조건을 선택하고 검색하세요</td></tr>
+    </tbody>
+  </table>
+  <div id="no-data-area"></div>
 </div>
 
 <!-- 보텀 시트 -->
@@ -278,6 +285,8 @@ let selGrade= '';
 let selSort = 'price-desc';
 let rawData = [];
 let allData = [];
+let favorites = JSON.parse(localStorage.getItem('kamis_favs') || '[null,null,null]');
+if (!Array.isArray(favorites) || favorites.length < 3) favorites = [null,null,null];
 
 document.addEventListener('DOMContentLoaded', () => {
   const today = new Date();
@@ -287,6 +296,7 @@ document.addEventListener('DOMContentLoaded', () => {
   selDate = today.toISOString().slice(0,10);
   document.getElementById('date-input-hidden').value = selDate;
   updatePanel();
+  renderFavorites();
   if (apiKey) {
     document.getElementById('api-key-input').value = apiKey;
     document.getElementById('api-id-input').value  = apiId;
@@ -307,23 +317,74 @@ function saveApiKey() {
   doSearch();
 }
 
-// ===== 패널 업데이트 =====
+// ===== 즐겨찾기 =====
+function makeFavLabel() {
+  const catName  = CATS.find(c=>c.code===selCat)?.name || '';
+  const itemName = getItemName(selItem) || selItem || '';
+  const parts = [catName, itemName].filter(Boolean);
+  return parts.length ? parts.join(' › ') : '전체';
+}
+
+function saveFavorite(slot) {
+  favorites[slot] = {
+    date:selDate, cat:selCat, item:selItem,
+    kind:selKind, grade:selGrade, sort:selSort,
+    label:makeFavLabel(),
+  };
+  localStorage.setItem('kamis_favs', JSON.stringify(favorites));
+  renderFavorites();
+}
+
+function loadFavorite(slot) {
+  const fav = favorites[slot];
+  if (!fav) return;
+  selDate = fav.date; selCat = fav.cat; selItem = fav.item;
+  selKind = fav.kind; selGrade = fav.grade; selSort = fav.sort || 'price-desc';
+  document.getElementById('date-input-hidden').value = selDate;
+  updatePanel();
+  doSearch();
+}
+
+function deleteFavorite(slot, e) {
+  e.stopPropagation();
+  favorites[slot] = null;
+  localStorage.setItem('kamis_favs', JSON.stringify(favorites));
+  renderFavorites();
+}
+
+function renderFavorites() {
+  const bar = document.getElementById('favorites-bar');
+  bar.innerHTML = [0,1,2].map(i => {
+    const fav = favorites[i];
+    if (fav) {
+      return `<button class="fav-slot fav-saved" onclick="loadFavorite(${i})">
+        <span class="fav-star">⭐</span>
+        <span class="fav-name">${fav.label}</span>
+        <span class="fav-sub">${fav.date}</span>
+        <button class="fav-del" onclick="deleteFavorite(${i},event)">✕</button>
+      </button>`;
+    }
+    return `<button class="fav-slot" onclick="saveFavorite(${i})">
+      <div class="fav-empty">☆ <span style="font-size:11px">저장</span></div>
+    </button>`;
+  }).join('');
+}
+
+// ===== 필터 패널 =====
 function updatePanel() {
   const catName  = CATS.find(c=>c.code===selCat)?.name || '전체';
   const itemName = getItemName(selItem) || (selItem || '전체');
-  const kindName = selKind  || '전체';
-  const gradeName= selGrade || '전체';
-  document.getElementById('fb-date').textContent   = selDate.replace(/-/g,'') || '-';
-  document.getElementById('fb-cat').textContent    = catName;
-  document.getElementById('fb-cat-cnt').textContent= rawData.length ? `(${rawData.length})` : '';
-  document.getElementById('fb-item').textContent   = itemName;
+  document.getElementById('fb-date').textContent    = selDate.replace(/-/g,'') || '-';
+  document.getElementById('fb-cat').textContent     = catName;
+  document.getElementById('fb-cat-cnt').textContent = rawData.length ? `(${rawData.length})` : '';
+  document.getElementById('fb-item').textContent    = itemName;
   document.getElementById('fb-item-cnt').textContent= allData.length ? `(${allData.length})` : '';
-  document.getElementById('fb-kind').textContent   = kindName;
+  document.getElementById('fb-kind').textContent    = selKind  || '전체';
   const kindBase = selItem ? allData : rawData;
   document.getElementById('fb-kind-cnt').textContent= selKind ? `(${kindBase.filter(d=>d.kind===selKind).length})` : (kindBase.length?`(${kindBase.length})`:'');
-  document.getElementById('fb-grade').textContent  = gradeName;
+  document.getElementById('fb-grade').textContent   = selGrade || '전체';
   document.getElementById('fb-grade-cnt').textContent= selGrade ? `(${allData.filter(d=>d.grade===selGrade).length})` : '';
-  document.getElementById('fb-sort').textContent   = SORT_OPTIONS.find(s=>s.v===selSort)?.n || '';
+  document.getElementById('fb-sort').textContent    = SORT_OPTIONS.find(s=>s.v===selSort)?.n || '';
 }
 
 // ===== 보텀 시트 =====
@@ -338,7 +399,7 @@ function openSheet(type) {
   let title = '', options = [];
   if (type === 'cat') {
     title = '분류 선택';
-    options = CATS.map(c => ({val:c.code, label:c.name, cnt:null, active:selCat===c.code}));
+    options = CATS.map(c=>({val:c.code, label:c.name, cnt:null, active:selCat===c.code}));
   } else if (type === 'item') {
     title = '품목 선택';
     const catItems = ITEMS[selCat] || [];
@@ -347,24 +408,17 @@ function openSheet(type) {
       const cnt = rawData.filter(d=>d.item===i.n||d.item.includes(i.n)).length;
       if (cnt > 0) options.push({val:i.c, label:i.n, cnt, active:selItem===i.c});
     });
-    // ITEMS에 없는 품목도 표시
-    const known = new Set(catItems.map(i=>i.n));
-    [...new Set(rawData.map(d=>d.item))].forEach(name => {
-      if (!catItems.some(i=>name===i.n||name.includes(i.n)||i.n.includes(name))) {
-        options.push({val:name, label:name, cnt:rawData.filter(d=>d.item===name).length, active:selItem===name});
-      }
-    });
   } else if (type === 'kind') {
     title = '품종 선택';
     const base = selItem ? allData : rawData;
     const kinds = [...new Set(base.map(d=>d.kind))].sort();
     options = [{val:'', label:'전체', cnt:base.length, active:selKind===''}];
-    kinds.forEach(k => options.push({val:k, label:k, cnt:base.filter(d=>d.kind===k).length, active:selKind===k}));
+    kinds.forEach(k=>options.push({val:k, label:k, cnt:base.filter(d=>d.kind===k).length, active:selKind===k}));
   } else if (type === 'grade') {
     title = '등급 선택';
     const grades = [...new Set(allData.map(d=>d.grade))].sort();
     options = [{val:'', label:'전체', cnt:allData.length, active:selGrade===''}];
-    grades.forEach(g => options.push({val:g, label:g, cnt:allData.filter(d=>d.grade===g).length, active:selGrade===g}));
+    grades.forEach(g=>options.push({val:g, label:g, cnt:allData.filter(d=>d.grade===g).length, active:selGrade===g}));
   } else if (type === 'sort') {
     title = '정렬 선택';
     options = SORT_OPTIONS.map(s=>({val:s.v, label:s.n, cnt:null, active:selSort===s.v}));
@@ -504,7 +558,7 @@ function renderTable(data) {
     return `<tr>
       <td class="td-date">${selDate}</td>
       <td><div class="td-item">${d.item}</div><div class="td-kind">${d.kind}</div></td>
-      <td class="td-grade">${d.grade}</td>
+      <td style="font-size:11px">${d.grade}</td>
       <td style="font-size:11px;color:var(--sub)">${d.unit}</td>
       <td class="td-price">${d.price.toLocaleString()}원${arrow}</td>
     </tr>`;
