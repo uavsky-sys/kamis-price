@@ -2,103 +2,150 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>농수산물 실시간 경매가격</title>
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
+* { box-sizing:border-box; margin:0; padding:0; }
 :root {
-  --green: #1b6b2f;
-  --green2: #2d8a4a;
-  --green-light: #e8f5ee;
-  --border: #ddd;
-  --text: #222;
-  --sub: #666;
-  --bg: #f5f5f5;
-  --red: #d32f2f;
-  --blue: #1565c0;
+  --green:#1b6b2f; --green2:#2d8a4a;
+  --border:#ddd; --text:#222; --sub:#666;
+  --red:#c62828; --blue:#1565c0;
 }
-body { font-family: 'Malgun Gothic','맑은 고딕',sans-serif; background:var(--bg); color:var(--text); max-width:600px; margin:0 auto; min-height:100vh; }
+html, body { height:100%; }
+body {
+  font-family:'Malgun Gothic','맑은 고딕',sans-serif;
+  background:#f5f5f5; color:var(--text);
+  max-width:600px; margin:0 auto;
+  display:flex; flex-direction:column;
+  height:100vh; overflow:hidden;
+}
 
 /* 헤더 */
-header { background:var(--green); color:#fff; padding:10px 14px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; }
-header h1 { font-size:16px; font-weight:700; }
-header .refresh-btn { background:rgba(255,255,255,0.2); border:none; color:#fff; padding:5px 10px; border-radius:4px; font-size:12px; cursor:pointer; display:flex; align-items:center; gap:4px; }
-.refresh-btn:active { background:rgba(255,255,255,0.35); }
+header {
+  background:var(--green); color:#fff;
+  padding:10px 14px; display:flex;
+  align-items:center; justify-content:space-between; flex-shrink:0;
+}
+header h1 { font-size:15px; font-weight:700; }
+.refresh-btn { background:rgba(255,255,255,0.2); border:none; color:#fff; padding:5px 10px; border-radius:4px; font-size:12px; cursor:pointer; }
 
 /* API 배너 */
-.api-banner { background:#fff8e1; border-bottom:2px solid #ffc107; padding:10px 14px; font-size:12px; }
+.api-banner { background:#fff8e1; border-bottom:2px solid #ffc107; padding:10px 14px; font-size:12px; flex-shrink:0; display:none; }
 .api-banner .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:6px; }
-.api-banner input { flex:1; min-width:180px; padding:6px 10px; border:1px solid #ffc107; border-radius:4px; font-size:12px; font-family:monospace; }
-.api-banner input.id-input { max-width:80px; flex:none; }
-.api-banner button { padding:6px 12px; background:var(--green); color:#fff; border:none; border-radius:4px; font-size:12px; cursor:pointer; white-space:nowrap; }
+.api-banner input { flex:1; min-width:160px; padding:6px 10px; border:1px solid #ffc107; border-radius:4px; font-size:12px; font-family:monospace; }
+.api-banner input.id-input { max-width:70px; flex:none; }
+.api-banner button { padding:6px 12px; background:var(--green); color:#fff; border:none; border-radius:4px; font-size:12px; cursor:pointer; }
 
-/* 필터 탭 */
-.filter-section { background:#fff; border-bottom:1px solid var(--border); }
-.cat-tabs { display:flex; overflow-x:auto; border-bottom:1px solid var(--border); scrollbar-width:none; }
-.cat-tabs::-webkit-scrollbar { display:none; }
-.cat-tab { flex:none; padding:10px 14px; font-size:13px; font-weight:600; color:var(--sub); border:none; background:none; cursor:pointer; border-bottom:3px solid transparent; white-space:nowrap; }
-.cat-tab.active { color:var(--green); border-bottom-color:var(--green); }
+/* 테이블 컨테이너 */
+.table-wrap {
+  flex:1; overflow-y:auto; overflow-x:hidden;
+  -webkit-overflow-scrolling:touch;
+  padding-bottom:96px;
+}
 
-.sub-cats { display:flex; flex-wrap:wrap; padding:8px 10px; gap:6px; }
-.sub-btn { padding:5px 12px; border:1px solid var(--border); border-radius:20px; font-size:12px; font-weight:600; color:var(--sub); background:#fff; cursor:pointer; white-space:nowrap; }
-.sub-btn.active { background:var(--green); color:#fff; border-color:var(--green); }
+/* 상태 바 */
+.status-bar {
+  background:#fff; padding:6px 12px;
+  display:flex; justify-content:space-between; align-items:center;
+  font-size:11px; color:var(--sub);
+  border-bottom:1px solid var(--border);
+  position:sticky; top:0; z-index:10;
+}
+.status-bar strong { color:var(--text); }
 
-/* 시장 필터 */
+/* 테이블 */
+table { width:100%; border-collapse:collapse; background:#fff; font-size:12px; }
+thead th {
+  position:sticky; top:29px; background:#fff; z-index:9;
+  border-bottom:2px solid var(--border);
+  padding:8px 4px; text-align:center; font-weight:700;
+  white-space:nowrap; color:var(--sub);
+}
+thead th:last-child { color:var(--red); }
+tbody tr { border-bottom:1px solid #f0f0f0; }
+tbody tr:active { background:#f9f9f9; }
+tbody td { padding:8px 4px; text-align:center; vertical-align:middle; line-height:1.4; }
+.td-item { font-weight:700; color:var(--text); font-size:13px; }
+.td-kind { font-size:11px; color:var(--sub); }
+.td-price { font-weight:700; color:var(--red); white-space:nowrap; font-size:13px; }
+.td-date { color:var(--sub); font-size:10px; white-space:nowrap; }
+.td-grade { font-size:11px; }
 
-/* 날짜/정렬 바 */
-.ctrl-bar { background:#fff; padding:8px 14px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--border); font-size:12px; gap:8px; }
-.ctrl-bar input[type=date] { border:1px solid var(--border); border-radius:4px; padding:4px 8px; font-size:12px; }
-.sort-select { border:1px solid var(--border); border-radius:4px; padding:4px 8px; font-size:12px; }
-.search-btn-main { background:var(--green); color:#fff; border:none; border-radius:4px; padding:6px 14px; font-size:13px; font-weight:700; cursor:pointer; }
-
-/* 결과 헤더 */
-.result-header { background:#fff; padding:8px 14px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); font-size:12px; color:var(--sub); }
-.result-header strong { color:var(--text); }
-
-/* 경매 목록 */
-.auction-list { padding:8px 10px; display:flex; flex-direction:column; gap:6px; }
-
-.auction-card { background:#fff; border-radius:8px; border:1px solid var(--border); overflow:hidden; cursor:pointer; transition:box-shadow 0.15s; }
-.auction-card:active { box-shadow:0 2px 8px rgba(0,0,0,0.12); }
-
-.card-main { padding:10px 12px; display:flex; justify-content:space-between; align-items:flex-start; }
-.card-left { flex:1; }
-.card-item { font-size:14px; font-weight:700; color:var(--text); margin-bottom:3px; }
-.card-item .kind { font-size:12px; font-weight:400; color:var(--sub); margin-left:4px; }
-.card-meta { font-size:11px; color:var(--sub); display:flex; flex-wrap:wrap; gap:4px; }
-.card-meta span { display:flex; align-items:center; gap:2px; }
-.card-right { text-align:right; }
-.card-price { font-size:18px; font-weight:700; color:var(--red); }
-.card-price-unit { font-size:10px; color:var(--sub); margin-top:2px; }
-.card-grade { display:inline-block; padding:2px 7px; border-radius:10px; font-size:11px; font-weight:700; margin-bottom:4px; }
-.grade-상품 { background:#fff3e0; color:#e65100; }
-.grade-중품 { background:var(--green-light); color:var(--green); }
-.grade-하품 { background:#e3f2fd; color:var(--blue); }
-
-.card-detail { border-top:1px solid #f0f0f0; padding:8px 12px; background:#fafafa; display:none; }
-.card-detail.open { display:block; }
-.detail-grid { display:grid; grid-template-columns:1fr 1fr; gap:4px 12px; font-size:12px; }
-.detail-row { display:flex; gap:6px; }
-.detail-label { color:var(--sub); min-width:54px; flex:none; }
-.detail-value { color:var(--text); font-weight:600; }
-
-/* 빈 상태 */
-.empty { text-align:center; padding:60px 20px; color:var(--sub); }
-.empty .icon { font-size:48px; margin-bottom:12px; }
-.loading { text-align:center; padding:50px; color:var(--sub); }
-.spinner { width:32px; height:32px; border:3px solid #e0e0e0; border-top-color:var(--green); border-radius:50%; animation:spin 0.8s linear infinite; margin:0 auto 12px; }
+/* 빈/로딩 */
+.empty-row td { padding:60px 20px; color:var(--sub); text-align:center; font-size:13px; }
+.spinner { width:28px; height:28px; border:3px solid #e0e0e0; border-top-color:var(--green); border-radius:50%; animation:spin 0.8s linear infinite; margin:0 auto 10px; }
 @keyframes spin { to { transform:rotate(360deg); } }
 
-/* 하단 */
-footer { text-align:center; padding:20px; font-size:11px; color:var(--sub); background:#fff; margin-top:8px; }
+/* 경락 없음 안내 */
+.no-data-box { margin:20px 12px; background:#fff8e1; border:1px solid #ffc107; border-radius:8px; padding:20px; text-align:center; }
+.no-data-box .icon { font-size:36px; margin-bottom:8px; }
+.no-data-box p { font-size:13px; color:#555; line-height:1.6; margin-bottom:12px; }
+.no-data-box a { display:inline-block; margin:4px; padding:6px 12px; background:#e8f5ee; color:var(--green); border-radius:6px; font-size:12px; font-weight:600; text-decoration:none; border:1px solid #b8dfc9; }
 
-.badge-new { display:inline-block; background:#f44336; color:#fff; font-size:9px; padding:1px 5px; border-radius:8px; margin-left:4px; vertical-align:middle; font-weight:700; }
+/* ===== 하단 필터 패널 ===== */
+.filter-panel {
+  position:fixed; bottom:0;
+  left:50%; transform:translateX(-50%);
+  width:100%; max-width:600px;
+  background:var(--green); z-index:100;
+}
+.filter-grid {
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr auto;
+  grid-template-rows:auto auto;
+}
+.filter-btn {
+  background:none; border:none;
+  border-right:1px solid rgba(255,255,255,0.2);
+  border-bottom:1px solid rgba(255,255,255,0.2);
+  color:#fff; padding:7px 4px;
+  cursor:pointer; text-align:center; font-family:inherit;
+}
+.filter-btn:active { background:rgba(0,0,0,0.15); }
+.fb-label { font-size:10px; color:rgba(255,255,255,0.65); display:block; margin-bottom:1px; }
+.fb-value { font-size:12px; font-weight:700; color:#fff; display:block; line-height:1.3; }
+.fb-count { font-size:10px; color:rgba(255,255,255,0.8); }
+.search-btn {
+  grid-row:1/3; grid-column:4;
+  background:rgba(0,0,0,0.2); border:none;
+  border-left:1px solid rgba(255,255,255,0.2);
+  color:#fff; font-size:15px; font-weight:700;
+  padding:0 16px; cursor:pointer; font-family:inherit;
+}
+.search-btn:active { background:rgba(0,0,0,0.35); }
 
-.no-bb { background:#fff8e1; border:1px solid #ffc107; border-radius:8px; padding:14px; margin:10px; text-align:center; }
-.no-bb .icon { font-size:32px; margin-bottom:8px; }
-.no-bb p { font-size:13px; color:#666; line-height:1.6; }
-.no-bb .links { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:10px; }
-.no-bb a { padding:6px 12px; background:var(--green-light); color:var(--green); border-radius:6px; font-size:12px; font-weight:600; text-decoration:none; border:1px solid #b8dfc9; }
+/* ===== 보텀 시트 ===== */
+.sheet-overlay {
+  display:none; position:fixed; inset:0;
+  background:rgba(0,0,0,0.4); z-index:200;
+}
+.sheet-overlay.open { display:block; }
+.sheet {
+  position:absolute; bottom:0;
+  left:50%; transform:translateX(-50%);
+  width:100%; max-width:600px;
+  background:#fff; border-radius:16px 16px 0 0;
+  max-height:70vh; overflow-y:auto;
+}
+.sheet-header {
+  padding:14px 16px; border-bottom:1px solid var(--border);
+  display:flex; justify-content:space-between; align-items:center;
+  position:sticky; top:0; background:#fff;
+}
+.sheet-title { font-size:15px; font-weight:700; }
+.sheet-close { background:none; border:none; font-size:20px; cursor:pointer; color:var(--sub); padding:0 4px; }
+.sheet-item {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:13px 16px; cursor:pointer;
+  border-bottom:1px solid #f5f5f5; font-size:14px;
+}
+.sheet-item:active { background:#f5f5f5; }
+.sheet-item.active { color:var(--green); font-weight:700; }
+.sheet-item .cnt { font-size:12px; color:var(--sub); }
+.sheet-item.active .cnt { color:var(--green); }
+
+/* 날짜 인풋 숨김 */
+#date-input-hidden { position:absolute; opacity:0; pointer-events:none; width:0; height:0; }
 </style>
 </head>
 <body>
@@ -108,7 +155,6 @@ footer { text-align:center; padding:20px; font-size:11px; color:var(--sub); back
   <button class="refresh-btn" onclick="doSearch()">🔄 새로고침</button>
 </header>
 
-<!-- API 배너 -->
 <div class="api-banner" id="api-banner">
   <div style="font-weight:700;color:#856404;margin-bottom:6px">🔑 KAMIS API 인증키 설정</div>
   <div class="row">
@@ -116,54 +162,92 @@ footer { text-align:center; padding:20px; font-size:11px; color:var(--sub); back
     <input type="text" id="api-id-input" class="id-input" placeholder="ID" />
     <button onclick="saveApiKey()">저장</button>
   </div>
-  <div style="color:#856404">
-    <a href="https://www.data.go.kr/tcs/dss/selectApiDataDetailView.do?publicDataPk=15100070" target="_blank" style="color:#1565c0;font-size:11px">🔗 data.go.kr에서 무료 발급</a>
+  <a href="https://www.data.go.kr/tcs/dss/selectApiDataDetailView.do?publicDataPk=15100070" target="_blank" style="color:#1565c0;font-size:11px">🔗 data.go.kr에서 무료 발급</a>
+</div>
+
+<div class="table-wrap">
+  <div class="status-bar">
+    <span id="result-info">조회 조건을 설정하세요</span>
+    <span id="last-update"></span>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>날짜</th>
+        <th>품목</th>
+        <th>등급</th>
+        <th>규격</th>
+        <th>경락가</th>
+      </tr>
+    </thead>
+    <tbody id="table-body">
+      <tr class="empty-row"><td colspan="5">아래 조건을 선택하고 검색하세요</td></tr>
+    </tbody>
+  </table>
+  <div id="no-data-area"></div>
+</div>
+
+<!-- 하단 필터 패널 -->
+<div class="filter-panel">
+  <div class="filter-grid">
+    <button class="filter-btn" onclick="openSheet('date')">
+      <span class="fb-label">날짜</span>
+      <span class="fb-value" id="fb-date">-</span>
+    </button>
+    <button class="filter-btn" onclick="openSheet('cat')">
+      <span class="fb-label">분류</span>
+      <span class="fb-value" id="fb-cat">전체</span>
+      <span class="fb-count" id="fb-cat-cnt"></span>
+    </button>
+    <button class="filter-btn" onclick="openSheet('item')">
+      <span class="fb-label">품목</span>
+      <span class="fb-value" id="fb-item">전체</span>
+      <span class="fb-count" id="fb-item-cnt"></span>
+    </button>
+    <button class="search-btn" onclick="doSearch()">검색</button>
+    <button class="filter-btn" onclick="openSheet('kind')">
+      <span class="fb-label">품종</span>
+      <span class="fb-value" id="fb-kind">전체</span>
+      <span class="fb-count" id="fb-kind-cnt"></span>
+    </button>
+    <button class="filter-btn" onclick="openSheet('grade')">
+      <span class="fb-label">등급</span>
+      <span class="fb-value" id="fb-grade">전체</span>
+      <span class="fb-count" id="fb-grade-cnt"></span>
+    </button>
+    <button class="filter-btn" onclick="openSheet('sort')">
+      <span class="fb-label">정렬</span>
+      <span class="fb-value" id="fb-sort">가격 높은순</span>
+    </button>
   </div>
 </div>
 
-<!-- 대분류 탭 -->
-<div class="filter-section">
-  <div class="cat-tabs" id="cat-tabs"></div>
-  <div class="sub-cats" id="sub-cats"></div>
+<!-- 보텀 시트 -->
+<div class="sheet-overlay" id="sheet-overlay" onclick="closeSheet()">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="sheet-header">
+      <span class="sheet-title" id="sheet-title">선택</span>
+      <button class="sheet-close" onclick="closeSheet()">✕</button>
+    </div>
+    <div id="sheet-items"></div>
+  </div>
 </div>
 
-<!-- 날짜/검색 -->
-<div class="ctrl-bar">
-  <input type="date" id="search-date" />
-  <select class="sort-select" id="sort-sel" onchange="renderList(sortData(allData))">
-    <option value="price-desc">가격 높은순</option>
-    <option value="price-asc">가격 낮은순</option>
-    <option value="item">품목명순</option>
-  </select>
-  <button class="search-btn-main" onclick="doSearch()">조회</button>
-</div>
-
-<div class="result-header">
-  <span id="result-info">조회 조건을 설정하세요</span>
-  <span id="last-update"></span>
-</div>
-
-<div id="auction-list" class="auction-list">
-  <div class="empty"><div class="icon">🌾</div><div>위 조건을 선택하고 조회하세요</div></div>
-</div>
-
-<footer>데이터 출처: KAMIS 농산물유통정보 · aT한국농수산식품유통공사</footer>
+<input type="date" id="date-input-hidden" onchange="selectDate(this.value)" />
 
 <script>
-// ===================== 데이터 =====================
 const CATS = [
-  { code:'', name:'전체' },
-  { code:'200', name:'채소류' },
-  { code:'400', name:'과일류' },
-  { code:'300', name:'특용작물' },
-  { code:'100', name:'식량작물' },
-  { code:'500', name:'축산물' },
-  { code:'600', name:'수산물' },
-  { code:'700', name:'임산물' },
+  {code:'',    name:'전체'},
+  {code:'200', name:'채소류'},
+  {code:'400', name:'과일류'},
+  {code:'300', name:'특용작물'},
+  {code:'100', name:'식량작물'},
+  {code:'500', name:'축산물'},
+  {code:'600', name:'수산물'},
+  {code:'700', name:'임산물'},
 ];
-
 const ITEMS = {
-  '': [],
+  '':    [],
   '100': [{c:'111',n:'쌀'},{c:'112',n:'찹쌀'},{c:'121',n:'콩'},{c:'131',n:'팥'},{c:'141',n:'녹두'},{c:'151',n:'옥수수'},{c:'161',n:'고구마'},{c:'162',n:'감자'}],
   '200': [{c:'211',n:'배추'},{c:'212',n:'양배추'},{c:'214',n:'상추'},{c:'215',n:'시금치'},{c:'216',n:'미나리'},{c:'217',n:'깻잎'},{c:'221',n:'무'},{c:'222',n:'당근'},{c:'232',n:'대파'},{c:'233',n:'쪽파'},{c:'241',n:'양파'},{c:'242',n:'마늘'},{c:'251',n:'오이'},{c:'252',n:'호박'},{c:'253',n:'토마토'},{c:'254',n:'방울토마토'},{c:'255',n:'파프리카'},{c:'259',n:'풋고추'},{c:'261',n:'고추(홍)'},{c:'271',n:'버섯(느타리)'},{c:'272',n:'버섯(팽이)'},{c:'273',n:'버섯(새송이)'}],
   '300': [{c:'311',n:'참깨'},{c:'312',n:'들깨'},{c:'321',n:'땅콩'},{c:'331',n:'인삼'},{c:'351',n:'생강'}],
@@ -172,236 +256,270 @@ const ITEMS = {
   '600': [{c:'611',n:'갈치'},{c:'614',n:'고등어'},{c:'615',n:'명태'},{c:'616',n:'오징어'},{c:'617',n:'조기'},{c:'625',n:'황태'},{c:'631',n:'굴'},{c:'633',n:'새우'},{c:'641',n:'김'},{c:'642',n:'미역'}],
   '700': [{c:'711',n:'밤'},{c:'712',n:'잣'},{c:'721',n:'표고버섯'},{c:'722',n:'송이버섯'}],
 };
-
-
-const NO_KAMIS = ['블루베리','복분자']; // 경락 데이터 없는 품목
-
+const NO_KAMIS = ['블루베리','복분자'];
 const CORS_PROXIES = [
   url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
   url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
 ];
 const KAMIS_BASE = 'https://www.kamis.or.kr/service/price/xml.do';
+const SORT_OPTIONS = [
+  {v:'price-desc',n:'가격 높은순'},
+  {v:'price-asc', n:'가격 낮은순'},
+  {v:'item',      n:'품목명순'},
+];
 
-let apiKey = localStorage.getItem('kamis_api_key') || '';
-let apiId  = localStorage.getItem('kamis_api_id')  || '8314';
-let selCat = '400';
+let apiKey  = localStorage.getItem('kamis_api_key') || '';
+let apiId   = localStorage.getItem('kamis_api_id')  || '8314';
+let selDate = '';
+let selCat  = '400';
 let selItem = '';
+let selKind = '';
+let selGrade= '';
+let selSort = 'price-desc';
 let rawData = [];
 let allData = [];
 
-// ===================== 초기화 =====================
 document.addEventListener('DOMContentLoaded', () => {
   const today = new Date();
-  // 주말이면 금요일로
   const day = today.getDay();
   if (day === 0) today.setDate(today.getDate() - 2);
   if (day === 6) today.setDate(today.getDate() - 1);
-  document.getElementById('search-date').value = today.toISOString().slice(0,10);
-
-  renderCatTabs();
-  renderSubCats();
+  selDate = today.toISOString().slice(0,10);
+  document.getElementById('date-input-hidden').value = selDate;
+  updatePanel();
   if (apiKey) {
     document.getElementById('api-key-input').value = apiKey;
-    document.getElementById('api-id-input').value = apiId;
-    document.getElementById('api-banner').style.display = 'none';
+    document.getElementById('api-id-input').value  = apiId;
     doSearch();
+  } else {
+    document.getElementById('api-banner').style.display = 'block';
   }
 });
 
 function saveApiKey() {
-  const k = document.getElementById('api-key-input').value.trim();
+  const k  = document.getElementById('api-key-input').value.trim();
   const id = document.getElementById('api-id-input').value.trim() || '8314';
   if (!k) { alert('API 키를 입력해주세요.'); return; }
   apiKey = k; apiId = id;
   localStorage.setItem('kamis_api_key', k);
-  localStorage.setItem('kamis_api_id', id);
+  localStorage.setItem('kamis_api_id',  id);
   document.getElementById('api-banner').style.display = 'none';
   doSearch();
 }
 
-// ===================== 카테고리 렌더 =====================
-function renderCatTabs() {
-  const el = document.getElementById('cat-tabs');
-  el.innerHTML = CATS.map(c => `
-    <button class="cat-tab ${c.code===selCat?'active':''}" onclick="selectCat('${c.code}')">${c.name}</button>
-  `).join('');
+// ===== 패널 업데이트 =====
+function updatePanel() {
+  const catName  = CATS.find(c=>c.code===selCat)?.name || '전체';
+  const itemName = getItemName(selItem) || (selItem || '전체');
+  const kindName = selKind  || '전체';
+  const gradeName= selGrade || '전체';
+  document.getElementById('fb-date').textContent   = selDate.replace(/-/g,'') || '-';
+  document.getElementById('fb-cat').textContent    = catName;
+  document.getElementById('fb-cat-cnt').textContent= rawData.length ? `(${rawData.length})` : '';
+  document.getElementById('fb-item').textContent   = itemName;
+  document.getElementById('fb-item-cnt').textContent= allData.length ? `(${allData.length})` : '';
+  document.getElementById('fb-kind').textContent   = kindName;
+  const kindBase = selItem ? allData : rawData;
+  document.getElementById('fb-kind-cnt').textContent= selKind ? `(${kindBase.filter(d=>d.kind===selKind).length})` : (kindBase.length?`(${kindBase.length})`:'');
+  document.getElementById('fb-grade').textContent  = gradeName;
+  document.getElementById('fb-grade-cnt').textContent= selGrade ? `(${allData.filter(d=>d.grade===selGrade).length})` : '';
+  document.getElementById('fb-sort').textContent   = SORT_OPTIONS.find(s=>s.v===selSort)?.n || '';
 }
 
-function selectCat(code) {
-  selCat = code; selItem = '';
-  renderCatTabs(); renderSubCats();
+// ===== 보텀 시트 =====
+let curSheet = '';
+function openSheet(type) {
+  curSheet = type;
+  if (type === 'date') {
+    const inp = document.getElementById('date-input-hidden');
+    try { inp.showPicker(); } catch(e) { inp.click(); }
+    return;
+  }
+  let title = '', options = [];
+  if (type === 'cat') {
+    title = '분류 선택';
+    options = CATS.map(c => ({val:c.code, label:c.name, cnt:null, active:selCat===c.code}));
+  } else if (type === 'item') {
+    title = '품목 선택';
+    const catItems = ITEMS[selCat] || [];
+    options = [{val:'', label:'전체', cnt:rawData.length, active:selItem===''}];
+    catItems.forEach(i => {
+      const cnt = rawData.filter(d=>d.item===i.n||d.item.includes(i.n)).length;
+      if (cnt > 0) options.push({val:i.c, label:i.n, cnt, active:selItem===i.c});
+    });
+    // ITEMS에 없는 품목도 표시
+    const known = new Set(catItems.map(i=>i.n));
+    [...new Set(rawData.map(d=>d.item))].forEach(name => {
+      if (!catItems.some(i=>name===i.n||name.includes(i.n)||i.n.includes(name))) {
+        options.push({val:name, label:name, cnt:rawData.filter(d=>d.item===name).length, active:selItem===name});
+      }
+    });
+  } else if (type === 'kind') {
+    title = '품종 선택';
+    const base = selItem ? allData : rawData;
+    const kinds = [...new Set(base.map(d=>d.kind))].sort();
+    options = [{val:'', label:'전체', cnt:base.length, active:selKind===''}];
+    kinds.forEach(k => options.push({val:k, label:k, cnt:base.filter(d=>d.kind===k).length, active:selKind===k}));
+  } else if (type === 'grade') {
+    title = '등급 선택';
+    const grades = [...new Set(allData.map(d=>d.grade))].sort();
+    options = [{val:'', label:'전체', cnt:allData.length, active:selGrade===''}];
+    grades.forEach(g => options.push({val:g, label:g, cnt:allData.filter(d=>d.grade===g).length, active:selGrade===g}));
+  } else if (type === 'sort') {
+    title = '정렬 선택';
+    options = SORT_OPTIONS.map(s=>({val:s.v, label:s.n, cnt:null, active:selSort===s.v}));
+  }
+  document.getElementById('sheet-title').textContent = title;
+  document.getElementById('sheet-items').innerHTML = options.map(o=>`
+    <div class="sheet-item ${o.active?'active':''}" onclick="selectSheetItem('${o.val.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')">
+      <span>${o.label}</span>
+      ${o.cnt!==null?`<span class="cnt">${o.cnt}건</span>`:''}
+    </div>`).join('');
+  document.getElementById('sheet-overlay').classList.add('open');
+}
+
+function selectSheetItem(val) {
+  closeSheet();
+  if (curSheet === 'cat') {
+    if (selCat === val) return;
+    selCat = val; selItem = ''; selKind = ''; selGrade = '';
+    doSearch();
+  } else if (curSheet === 'item') {
+    selItem = val; selKind = ''; selGrade = '';
+    const name = getItemName(val) || val;
+    if (val && NO_KAMIS.includes(name)) { showNoKamis(name); updatePanel(); return; }
+    filterAndRender();
+  } else if (curSheet === 'kind') {
+    selKind = val; selGrade = '';
+    filterAndRender();
+  } else if (curSheet === 'grade') {
+    selGrade = val;
+    filterAndRender();
+  } else if (curSheet === 'sort') {
+    selSort = val;
+    renderTable(sortData(allData));
+    updatePanel();
+  }
+}
+
+function closeSheet() {
+  document.getElementById('sheet-overlay').classList.remove('open');
+}
+
+function selectDate(val) {
+  if (!val) return;
+  selDate = val;
+  updatePanel();
   doSearch();
 }
 
-function renderSubCats() {
-  const items = ITEMS[selCat] || [];
-  const el = document.getElementById('sub-cats');
-  if (!items.length) { el.innerHTML = ''; return; }
-  el.innerHTML = `<button class="sub-btn ${selItem===''?'active':''}" onclick="selectItem('')">전체</button>` +
-    items.map(i => `<button class="sub-btn ${selItem===i.c?'active':''}" onclick="selectItem('${i.c}','${i.n}')">${i.n}</button>`).join('');
-}
-
-function selectItem(code, name) {
-  selItem = code;
-  renderSubCats();
-  const itemName = getItemName(selItem);
-  if (selItem && NO_KAMIS.includes(itemName)) { showNoKamis(itemName); return; }
-  filterAndRender();
-}
-
-
-// ===================== 조회 =====================
-async function doSearch() {
-  if (!apiKey) { document.getElementById('api-banner').style.display = 'block'; return; }
-
-  // 경락 없는 품목 체크
-  const itemName = getItemName(selItem);
-  if (selItem && NO_KAMIS.includes(itemName)) {
-    showNoKamis(itemName); return;
-  }
-
-  const list = document.getElementById('auction-list');
-  list.innerHTML = '<div class="loading"><div class="spinner"></div>경매가격 조회 중...</div>';
-  document.getElementById('result-info').textContent = '조회 중...';
-
-  try {
-    rawData = await fetchData();
-    filterAndRender();
-    document.getElementById('last-update').textContent = new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}) + ' 기준';
-  } catch(e) {
-    list.innerHTML = `<div class="empty"><div class="icon">⚠️</div><div style="font-size:14px;font-weight:600;margin-bottom:6px">조회 실패</div><div style="font-size:12px;color:#999">${e.message}</div></div>`;
-    document.getElementById('result-info').textContent = '오류 발생';
-  }
-}
-
+// ===== 조회 =====
 function getItemName(code) {
   for (const items of Object.values(ITEMS)) {
-    const found = items.find(i => i.c === code);
-    if (found) return found.n;
+    const f = items.find(i=>i.c===code);
+    if (f) return f.n;
   }
   return '';
 }
 
+async function doSearch() {
+  if (!apiKey) { document.getElementById('api-banner').style.display='block'; return; }
+  const iname = getItemName(selItem);
+  if (selItem && NO_KAMIS.includes(iname)) { showNoKamis(iname); return; }
+
+  document.getElementById('table-body').innerHTML = '<tr class="empty-row"><td colspan="5"><div class="spinner"></div>조회 중...</td></tr>';
+  document.getElementById('no-data-area').innerHTML = '';
+  document.getElementById('result-info').textContent = '조회 중...';
+
+  try {
+    rawData = await fetchData();
+    selKind = ''; selGrade = '';
+    filterAndRender();
+    document.getElementById('last-update').textContent = new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}) + ' 기준';
+  } catch(e) {
+    document.getElementById('table-body').innerHTML = `<tr class="empty-row"><td colspan="5">⚠️ ${e.message}</td></tr>`;
+    document.getElementById('result-info').textContent = '오류 발생';
+  }
+}
+
 async function fetchData() {
-  const regday = document.getElementById('search-date').value;
   const params = new URLSearchParams({
-    action: 'dailyPriceByCategoryList',
-    p_cert_key: apiKey,
-    p_cert_id: apiId,
-    p_returntype: 'json',
-    p_product_cls_code: '02',
-    p_item_category_code: selCat || '',
-    p_regday: regday,
-    p_convert_kg_yn: 'N',
+    action:'dailyPriceByCategoryList',
+    p_cert_key:apiKey, p_cert_id:apiId,
+    p_returntype:'json', p_product_cls_code:'02',
+    p_item_category_code:selCat||'',
+    p_regday:selDate, p_convert_kg_yn:'N',
   });
   const url = `${KAMIS_BASE}?${params}`;
-
   let res;
-  for (const makeProxy of CORS_PROXIES) {
-    try {
-      res = await fetch(makeProxy(url), { signal: AbortSignal.timeout(8000) });
-      if (res.ok) break;
-    } catch(e) { res = null; }
+  for (const proxy of CORS_PROXIES) {
+    try { res = await fetch(proxy(url),{signal:AbortSignal.timeout(8000)}); if(res.ok) break; }
+    catch(e) { res=null; }
   }
   if (!res?.ok) throw new Error('네트워크 오류. 잠시 후 다시 시도해주세요.');
   const json = await res.json();
-  if (!json.data?.item?.length) throw new Error('해당 날짜의 데이터가 없습니다.\n평일 날짜로 변경해보세요.');
-
+  if (!json.data?.item?.length) throw new Error('해당 날짜의 데이터가 없습니다. 평일 날짜로 변경해보세요.');
   return json.data.item
-    .filter(item => parseInt((item.dpr1||'0').replace(/,/g,'')) > 0)
-    .map(item => ({
-      item:   item.item_name || '-',
-      kind:   item.kind_name || '-',
-      grade:  item.rank || '-',
-      unit:   item.unit || '-',
-      price:  parseInt((item.dpr1||'0').replace(/,/g,'')) || 0,
-      week1:  parseInt((item.dpr3||'0').replace(/,/g,'')) || 0,
-      month1: parseInt((item.dpr5||'0').replace(/,/g,'')) || 0,
-      year1:  parseInt((item.dpr6||'0').replace(/,/g,'')) || 0,
-      date:   document.getElementById('search-date').value,
+    .filter(r => parseInt((r.dpr1||'0').replace(/,/g,'')) > 0)
+    .map(r => ({
+      item:  r.item_name||'-', kind:  r.kind_name||'-',
+      grade: r.rank||'-',     unit:  r.unit||'-',
+      price: parseInt((r.dpr1||'0').replace(/,/g,''))||0,
+      week1: parseInt((r.dpr3||'0').replace(/,/g,''))||0,
     }));
 }
 
 function filterAndRender() {
-  const itemName = getItemName(selItem);
-  if (selItem && itemName) {
-    const exact = rawData.filter(d => d.item === itemName);
-    allData = exact.length > 0 ? exact : rawData.filter(d => d.item.includes(itemName));
-  } else {
-    allData = rawData;
+  let data = rawData;
+  const iname = getItemName(selItem) || selItem;
+  if (selItem && iname) {
+    const exact = data.filter(d=>d.item===iname);
+    data = exact.length > 0 ? exact : data.filter(d=>d.item.includes(iname));
   }
-  renderList(sortData(allData));
+  if (selKind)  data = data.filter(d=>d.kind===selKind);
+  if (selGrade) data = data.filter(d=>d.grade===selGrade);
+  allData = data;
+  renderTable(sortData(allData));
   document.getElementById('result-info').innerHTML = `<strong>${allData.length}건</strong> 조회됨`;
+  updatePanel();
 }
 
 function sortData(data) {
-  const sort = document.getElementById('sort-sel').value;
-  return [...data].sort((a,b) => {
-    if (sort==='price-desc') return b.price - a.price;
-    if (sort==='price-asc') return a.price - b.price;
-    return a.item.localeCompare(b.item, 'ko');
+  return [...data].sort((a,b)=>{
+    if (selSort==='price-desc') return b.price-a.price;
+    if (selSort==='price-asc')  return a.price-b.price;
+    return a.item.localeCompare(b.item,'ko');
   });
 }
 
-// ===================== 렌더 =====================
-function renderList(data) {
-  const list = document.getElementById('auction-list');
+function renderTable(data) {
+  document.getElementById('no-data-area').innerHTML = '';
   if (!data.length) {
-    list.innerHTML = '<div class="empty"><div class="icon">📭</div><div style="font-size:14px;font-weight:600;margin-bottom:6px">데이터가 없습니다</div><div style="font-size:12px;color:#999">평일 날짜나 다른 품목으로 조회해보세요.</div></div>';
+    document.getElementById('table-body').innerHTML = '<tr class="empty-row"><td colspan="5">📭 데이터가 없습니다</td></tr>';
     return;
   }
-
-  list.innerHTML = data.map((d, i) => {
-    const changeW = d.week1 > 0 ? Math.round((d.price - d.week1) / d.week1 * 100) : null;
-    const changeArrow = changeW !== null ? (changeW > 0 ? `<span style="color:#d32f2f;font-size:11px">▲${changeW}%</span>` : changeW < 0 ? `<span style="color:#1565c0;font-size:11px">▼${Math.abs(changeW)}%</span>` : '<span style="color:#999;font-size:11px">─</span>') : '';
-    const gradeClass = d.grade.includes('상') ? 'grade-상품' : d.grade.includes('중') ? 'grade-중품' : 'grade-하품';
-
-    return `
-    <div class="auction-card" onclick="toggleDetail(${i})">
-      <div class="card-main">
-        <div class="card-left">
-          <div class="card-item">${d.item} <span class="kind">${d.kind}</span></div>
-          <div class="card-meta">
-            <span>📅 ${d.date}</span>
-            <span>📦 ${d.unit}</span>
-            ${changeArrow ? `<span>${changeArrow} 전주비</span>` : ''}
-          </div>
-        </div>
-        <div class="card-right">
-          <div><span class="card-grade ${gradeClass}">${d.grade}</span></div>
-          <div class="card-price">${d.price.toLocaleString()}</div>
-          <div class="card-price-unit">원 / ${d.unit}</div>
-        </div>
-      </div>
-      <div class="card-detail" id="detail-${i}">
-        <div class="detail-grid">
-          <div class="detail-row"><span class="detail-label">당일가</span><span class="detail-value" style="color:#d32f2f">${d.price.toLocaleString()}원</span></div>
-          <div class="detail-row"><span class="detail-label">1주전</span><span class="detail-value">${d.week1 > 0 ? d.week1.toLocaleString()+'원' : '-'}</span></div>
-          <div class="detail-row"><span class="detail-label">1개월전</span><span class="detail-value">${d.month1 > 0 ? d.month1.toLocaleString()+'원' : '-'}</span></div>
-          <div class="detail-row"><span class="detail-label">1년전</span><span class="detail-value">${d.year1 > 0 ? d.year1.toLocaleString()+'원' : '-'}</span></div>
-        </div>
-        <div style="margin-top:8px;font-size:11px;color:#999">※ KAMIS 전국 평균 도매가격 기준</div>
-      </div>
-    </div>`;
+  document.getElementById('table-body').innerHTML = data.map(d => {
+    const chg = d.week1>0 ? Math.round((d.price-d.week1)/d.week1*100) : null;
+    const arrow = chg!==null ? (chg>0?`<span style="color:var(--red);font-size:10px"> ▲${chg}%</span>`:chg<0?`<span style="color:var(--blue);font-size:10px"> ▼${Math.abs(chg)}%</span>`:'') : '';
+    return `<tr>
+      <td class="td-date">${selDate}</td>
+      <td><div class="td-item">${d.item}</div><div class="td-kind">${d.kind}</div></td>
+      <td class="td-grade">${d.grade}</td>
+      <td style="font-size:11px;color:var(--sub)">${d.unit}</td>
+      <td class="td-price">${d.price.toLocaleString()}원${arrow}</td>
+    </tr>`;
   }).join('');
 }
 
-function toggleDetail(i) {
-  const el = document.getElementById(`detail-${i}`);
-  el.classList.toggle('open');
-}
-
 function showNoKamis(itemName) {
-  const list = document.getElementById('auction-list');
-  list.innerHTML = `
-    <div class="no-bb">
+  document.getElementById('table-body').innerHTML = '';
+  document.getElementById('no-data-area').innerHTML = `
+    <div class="no-data-box">
       <div class="icon">🫐</div>
       <p><strong>${itemName}</strong>은(는) 공영도매시장 경매 대상 품목이 아니어서<br>KAMIS 경락 데이터가 없습니다.</p>
-      <div class="links">
-        <a href="https://at.agromarket.kr/users/price/retail/daily.do" target="_blank">🛒 KAMIS 소매가격</a>
-        <a href="https://at.agromarket.kr/users/price/wholesale/daily.do" target="_blank">🏪 aT 중도매인 정보</a>
-        <a href="https://www.kamis.or.kr" target="_blank">📊 KAMIS 직접검색</a>
-      </div>
+      <a href="https://at.agromarket.kr/users/price/retail/daily.do" target="_blank">🛒 KAMIS 소매가격</a>
+      <a href="https://at.agromarket.kr/users/price/wholesale/daily.do" target="_blank">🏪 aT 중도매인 정보</a>
+      <a href="https://www.kamis.or.kr" target="_blank">📊 KAMIS 직접검색</a>
     </div>`;
   document.getElementById('result-info').textContent = '경락 데이터 없음';
 }
