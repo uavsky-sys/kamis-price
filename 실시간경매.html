@@ -230,6 +230,11 @@ tbody td { padding:7px 4px; text-align:center; vertical-align:middle; line-heigh
 .sheet-item .cnt { font-size:12px; color:var(--sub); margin-left:auto; }
 .sheet-item.active .cnt { color:var(--green); }
 .sheet-item .check { width:20px; font-size:14px; color:var(--green); flex-shrink:0; }
+.sheet-region {
+  padding:6px 16px; font-size:11px; font-weight:700;
+  color:rgba(255,255,255,0.9); background:var(--green2);
+  letter-spacing:0.5px;
+}
 
 #date-input-hidden { position:absolute; opacity:0; pointer-events:none; width:0; height:0; }
 </style>
@@ -367,33 +372,81 @@ const CATS = [
   {code:'700', name:'임산물'},
 ];
 const MARKETS = [
-  {code:'110', name:'서울 가락'},
-  {code:'111', name:'서울 강서'},
-  {code:'120', name:'인천'},
-  {code:'130', name:'수원'},
-  {code:'210', name:'부산 엄궁'},
-  {code:'211', name:'부산 반여'},
-  {code:'220', name:'대구'},
-  {code:'230', name:'전주'},
-  {code:'240', name:'대전'},
-  {code:'250', name:'청주'},
-  {code:'260', name:'광주'},
-  {code:'270', name:'창원'},
+  // 서울
+  {code:'110', name:'서울 가락', region:'서울'},
+  {code:'111', name:'서울 강서', region:'서울'},
+  // 경기·인천
+  {code:'120', name:'인천 남촌', region:'경기·인천'},
+  {code:'121', name:'인천 삼산', region:'경기·인천'},
+  {code:'130', name:'수원',     region:'경기·인천'},
+  {code:'140', name:'안산',     region:'경기·인천'},
+  {code:'280', name:'구리',     region:'경기·인천'},
+  {code:'290', name:'안양',     region:'경기·인천'},
+  // 강원
+  {code:'310', name:'춘천', region:'강원'},
+  {code:'320', name:'원주', region:'강원'},
+  {code:'330', name:'강릉', region:'강원'},
+  // 충청
+  {code:'240', name:'대전 오정', region:'충청'},
+  {code:'241', name:'대전 노은', region:'충청'},
+  {code:'250', name:'청주',      region:'충청'},
+  {code:'340', name:'천안',      region:'충청'},
+  {code:'350', name:'충주',      region:'충청'},
+  // 전라
+  {code:'230', name:'전주', region:'전라'},
+  {code:'231', name:'익산', region:'전라'},
+  {code:'232', name:'정읍', region:'전라'},
+  {code:'260', name:'광주 각화', region:'전라'},
+  {code:'261', name:'광주 서부', region:'전라'},
+  {code:'262', name:'순천',      region:'전라'},
+  // 경상
+  {code:'210', name:'부산 엄궁', region:'경상'},
+  {code:'211', name:'부산 반여', region:'경상'},
+  {code:'220', name:'대구 북부', region:'경상'},
+  {code:'221', name:'대구 매천', region:'경상'},
+  {code:'300', name:'울산',      region:'경상'},
+  {code:'270', name:'창원 내서', region:'경상'},
+  {code:'271', name:'창원 팔용', region:'경상'},
+  {code:'272', name:'진주',      region:'경상'},
+  {code:'360', name:'구미',      region:'경상'},
+  {code:'370', name:'안동',      region:'경상'},
+  {code:'380', name:'포항',      region:'경상'},
 ];
-// 시장별 도매법인 목록 (API 응답 법인명과 일치하도록 설정)
+// 시장별 도매법인 목록
 const CORPS = {
   '110': ['서울청과','중앙청과','한국청과','대아청과','동화청과','농협공판장'],
   '111': ['강서청과','서울청과','농협공판장'],
   '120': ['인천청과','농협공판장'],
+  '121': ['인천삼산청과','농협공판장'],
   '130': ['경기청과','수원농협공판장'],
+  '140': ['안산청과','농협공판장'],
+  '280': ['구리청과','농협공판장'],
+  '290': ['안양농산','농협공판장'],
+  '310': ['춘천청과','농협공판장'],
+  '320': ['원주청과','농협공판장'],
+  '330': ['강릉청과','농협공판장'],
   '210': ['부산청과','부산공판장','농협공판장'],
   '211': ['반여농산','부산청과'],
   '220': ['대구청과','대구공판장','농협공판장'],
+  '221': ['매천청과','농협공판장'],
   '230': ['전주청과','전주공판장'],
+  '231': ['익산청과','농협공판장'],
+  '232': ['정읍청과','농협공판장'],
   '240': ['대전청과','농협공판장'],
+  '241': ['노은청과','농협공판장'],
   '250': ['충북청과','청주공판장'],
   '260': ['광주청과','광주공판장','농협공판장'],
+  '261': ['광주서부청과','농협공판장'],
+  '262': ['순천청과','농협공판장'],
   '270': ['경남청과','창원공판장'],
+  '271': ['팔용청과','농협공판장'],
+  '272': ['진주청과','농협공판장'],
+  '300': ['울산청과','농협공판장'],
+  '340': ['천안청과','농협공판장'],
+  '350': ['충주청과','농협공판장'],
+  '360': ['구미청과','농협공판장'],
+  '370': ['안동청과','농협공판장'],
+  '380': ['포항청과','농협공판장'],
 };
 const ITEMS = {
   '':    [],
@@ -594,7 +647,23 @@ function openSheet(type) {
   let title = '', options = [];
   if (type === 'market') {
     title = '도매시장 선택';
-    options = MARKETS.map(m=>({val:m.code, label:m.name, cnt:null, active:selMarket===m.code}));
+    // 지역별 그룹 렌더링 (options 방식 대신 직접 HTML)
+    const regions = [...new Set(MARKETS.map(m=>m.region))];
+    let html = '';
+    regions.forEach(r => {
+      html += `<div class="sheet-region">${r}</div>`;
+      MARKETS.filter(m=>m.region===r).forEach(m => {
+        html += `<div class="sheet-item${selMarket===m.code?' active':''}" onclick="selectSheetItem('${m.code}')">
+          <span>${m.name}</span>
+          ${selMarket===m.code?'<span style="color:var(--green);font-size:12px">✔ 선택중</span>':''}
+        </div>`;
+      });
+    });
+    document.getElementById('sheet-title').textContent = title;
+    document.getElementById('sheet-items').innerHTML = html;
+    document.getElementById('sheet-done-btn').style.display = 'none';
+    document.getElementById('sheet-overlay').classList.add('open');
+    return;
   } else if (type === 'corp') {
     title = '도매법인 선택 (복수 선택 가능)';
     const staticCorps = CORPS[selMarket] || [];
