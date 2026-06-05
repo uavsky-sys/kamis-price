@@ -111,6 +111,27 @@ header h1 { font-size:15px; font-weight:700; }
 }
 .search-btn:active { background:rgba(0,0,0,0.4); }
 
+/* 선택된 도매법인 칩 바 */
+.corp-chips {
+  display:none; flex-wrap:wrap; gap:5px;
+  background:#f0f7f2; border-bottom:1px solid var(--border);
+  padding:6px 10px; flex-shrink:0;
+}
+.corp-chips.visible { display:flex; }
+.corp-chip {
+  display:inline-flex; align-items:center; gap:4px;
+  background:var(--green); color:#fff;
+  border-radius:12px; padding:3px 8px 3px 10px;
+  font-size:11px; font-weight:700; cursor:default;
+}
+.corp-chip-del {
+  background:rgba(255,255,255,0.3); border:none; color:#fff;
+  border-radius:50%; width:14px; height:14px;
+  font-size:10px; line-height:14px; text-align:center;
+  cursor:pointer; padding:0; flex-shrink:0; font-family:inherit;
+}
+.corp-chip-del:active { background:rgba(255,255,255,0.5); }
+
 /* 정렬 바 */
 .sort-bar {
   background:#fff; border-bottom:1px solid var(--border);
@@ -205,9 +226,10 @@ tbody td { padding:7px 4px; text-align:center; vertical-align:middle; line-heigh
   border-bottom:1px solid #f5f5f5; font-size:14px;
 }
 .sheet-item:active { background:#f5f5f5; }
-.sheet-item.active { color:var(--green); font-weight:700; }
-.sheet-item .cnt { font-size:12px; color:var(--sub); }
+.sheet-item.active { background:#f0f7f2; color:var(--green); font-weight:700; }
+.sheet-item .cnt { font-size:12px; color:var(--sub); margin-left:auto; }
 .sheet-item.active .cnt { color:var(--green); }
+.sheet-item .check { width:20px; font-size:14px; color:var(--green); flex-shrink:0; }
 
 #date-input-hidden { position:absolute; opacity:0; pointer-events:none; width:0; height:0; }
 </style>
@@ -286,6 +308,9 @@ tbody td { padding:7px 4px; text-align:center; vertical-align:middle; line-heigh
   </div>
 </div>
 
+<!-- 선택된 도매법인 칩 -->
+<div class="corp-chips" id="corp-chips"></div>
+
 <!-- 정렬 바 -->
 <div class="sort-bar" id="sort-bar">
   <span style="font-size:11px;color:var(--sub)">정렬</span>
@@ -324,6 +349,7 @@ tbody td { padding:7px 4px; text-align:center; vertical-align:middle; line-heigh
       <button class="sheet-close" onclick="closeSheet()">✕</button>
     </div>
     <div id="sheet-items"></div>
+    <button id="sheet-done-btn" onclick="closeSheet()" style="display:none;width:100%;padding:14px;background:var(--green);color:#fff;border:none;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;">✔ 완료</button>
   </div>
 </div>
 
@@ -397,7 +423,7 @@ let selKind   = '';
 let selGrade  = '';
 let selSort   = 'price-desc';
 let selMarket = '110';
-let selCorp   = '';
+let selCorps  = [];   // 다중 선택
 let rawData   = [];
 let allData   = [];
 let whlData   = [];
@@ -455,7 +481,7 @@ function setSort(v) {
 function makeFavLabel() {
   if (selCat === 'WHS') {
     const mkt = MARKETS.find(m=>m.code===selMarket)?.name || '도매시장';
-    return '도매시장 › ' + mkt + (selCorp ? ' › '+selCorp : '');
+    return '도매시장 › ' + mkt + (selCorps.length ? ' › '+selCorps.join(',') : '');
   }
   const catName  = CATS.find(c=>c.code===selCat)?.name || '';
   const itemName = getItemName(selItem) || selItem || '';
@@ -467,7 +493,7 @@ function saveFavorite(slot) {
   favorites[slot] = {
     date:selDate, cat:selCat, item:selItem,
     kind:selKind, grade:selGrade, sort:selSort,
-    market:selMarket, corp:selCorp,
+    market:selMarket, corps:selCorps.slice(),
     label:makeFavLabel(),
   };
   localStorage.setItem('kamis_favs', JSON.stringify(favorites));
@@ -479,7 +505,7 @@ function loadFavorite(slot) {
   if (!fav) return;
   selDate = fav.date; selCat = fav.cat; selItem = fav.item;
   selKind = fav.kind; selGrade = fav.grade; selSort = fav.sort || 'price-desc';
-  selMarket = fav.market || '110'; selCorp = fav.corp || '';
+  selMarket = fav.market || '110'; selCorps = fav.corps || (fav.corp ? [fav.corp] : []);
   document.getElementById('date-input-hidden').value = selDate;
   setSort(selSort);
   updatePanel();
@@ -519,9 +545,18 @@ function updatePanel() {
   // 도매시장/도매법인: WHS 모드에서만 활성
   const mktName = MARKETS.find(m=>m.code===selMarket)?.name || '서울 가락';
   document.getElementById('fb-market').textContent = mktName;
-  document.getElementById('fb-corp').textContent   = selCorp || '전체';
-  const corpCnt = selCorp ? whlData.filter(d=>d.corp===selCorp).length : whlData.length;
+  document.getElementById('fb-corp').textContent   = selCorps.length ? selCorps[0]+(selCorps.length>1?` 외 ${selCorps.length-1}`:'') : '전체';
+  const corpCnt = selCorps.length ? whlData.filter(d=>selCorps.includes(d.corp)).length : whlData.length;
   document.getElementById('fb-corp-cnt').textContent = whlData.length ? `(${corpCnt})` : '';
+  // 칩 렌더링
+  const chipsEl = document.getElementById('corp-chips');
+  if (isWhs && selCorps.length > 0) {
+    chipsEl.className = 'corp-chips visible';
+    chipsEl.innerHTML = selCorps.map(c=>`<span class="corp-chip">${c}<button class="corp-chip-del" onclick="removeCorpChip('${c.replace(/'/g,"\\'")}')">×</button></span>`).join('');
+  } else {
+    chipsEl.className = 'corp-chips';
+    chipsEl.innerHTML = '';
+  }
   document.getElementById('fb-btn-market').className = 'filter-btn' + (isWhs ? ' fb-active' : ' fb-dim');
   document.getElementById('fb-btn-corp').className   = 'filter-btn' + (isWhs ? ' fb-active' : ' fb-dim');
 
@@ -561,14 +596,14 @@ function openSheet(type) {
     title = '도매시장 선택';
     options = MARKETS.map(m=>({val:m.code, label:m.name, cnt:null, active:selMarket===m.code}));
   } else if (type === 'corp') {
-    title = '도매법인 선택';
+    title = '도매법인 선택 (복수 선택 가능)';
     const staticCorps = CORPS[selMarket] || [];
     const dynCorps = [...new Set(whlData.map(d=>d.corp))].filter(c=>c&&c!=='-');
     const allCorps = [...new Set([...staticCorps, ...dynCorps])];
-    options = [{val:'', label:'전체', cnt:whlData.length, active:selCorp===''}];
+    options = [{val:'__all__', label:'전체 (초기화)', cnt:whlData.length, active:selCorps.length===0}];
     allCorps.forEach(c=>{
       const cnt = whlData.filter(d=>d.corp===c).length;
-      options.push({val:c, label:c, cnt:cnt||null, active:selCorp===c});
+      options.push({val:c, label:c, cnt:cnt||null, active:selCorps.includes(c)});
     });
   } else if (type === 'cat') {
     title = '분류 선택';
@@ -592,24 +627,40 @@ function openSheet(type) {
   document.getElementById('sheet-title').textContent = title;
   document.getElementById('sheet-items').innerHTML = options.map(o=>`
     <div class="sheet-item ${o.active?'active':''}" onclick="selectSheetItem('${o.val.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')">
+      ${curSheet==='corp'?`<span class="check">${o.active?'✔':''}</span>`:''}
       <span>${o.label}</span>
       ${o.cnt!==null?`<span class="cnt">${o.cnt}건</span>`:''}
     </div>`).join('');
+  const doneBtn = document.getElementById('sheet-done-btn');
+  if (curSheet === 'corp') {
+    doneBtn.style.display = 'block';
+  } else {
+    doneBtn.style.display = 'none';
+  }
   document.getElementById('sheet-overlay').classList.add('open');
 }
 
 function selectSheetItem(val) {
+  if (curSheet === 'corp') {
+    if (val === '__all__') {
+      selCorps = [];
+    } else {
+      const idx = selCorps.indexOf(val);
+      if (idx === -1) selCorps.push(val);
+      else selCorps.splice(idx, 1);
+    }
+    filterWholesale();
+    openSheet('corp'); // 시트 유지하며 체크 갱신
+    return;
+  }
   closeSheet();
   if (curSheet === 'market') {
-    selMarket = val; selCorp = '';
+    selMarket = val; selCorps = [];
     selCat = 'WHS'; selItem = ''; selKind = ''; selGrade = '';
     doSearch();
-  } else if (curSheet === 'corp') {
-    selCorp = val;
-    filterWholesale();
   } else if (curSheet === 'cat') {
     if (selCat === val) return;
-    selCat = val; selItem = ''; selKind = ''; selGrade = ''; selCorp = '';
+    selCat = val; selItem = ''; selKind = ''; selGrade = ''; selCorps = [];
     doSearch();
   } else if (curSheet === 'item') {
     selItem = val; selKind = ''; selGrade = '';
@@ -662,9 +713,15 @@ async function fetchWholesaleData() {
   }));
 }
 
+function removeCorpChip(name) {
+  selCorps = selCorps.filter(c => c !== name);
+  filterWholesale();
+  updatePanel();
+}
+
 function filterWholesale() {
   let data = whlData;
-  if (selCorp) data = data.filter(d=>d.corp===selCorp);
+  if (selCorps.length) data = data.filter(d=>selCorps.includes(d.corp));
   const sorted = [...data].sort((a,b)=>{
     if (selSort==='price-desc') return b.priceAvg - a.priceAvg;
     if (selSort==='price-asc')  return a.priceAvg - b.priceAvg;
@@ -705,7 +762,7 @@ async function doSearch() {
   if (selCat === 'WHS') {
     try {
       whlData = await fetchWholesaleData();
-      selCorp = '';
+      selCorps = [];
       filterWholesale();
       document.getElementById('last-update').textContent = new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}) + ' 기준';
     } catch(e) {
