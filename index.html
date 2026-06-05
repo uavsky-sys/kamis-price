@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>농수산물 도매시장 경매가격 조회</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root {
+    --green: #2d7a4f;
+    --green-light: #e8f5ee;
+    --green-mid: #4caf50;
+    --orange: #e67e22;
+    --blue: #2980b9;
+    --gray: #6c757d;
+    --bg: #f4f6f8;
+    --card: #ffffff;
+    --border: #dee2e6;
+    --text: #2c3e50;
+    --text-light: #6c757d;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  header {
+    background: linear-gradient(135deg, #2d7a4f 0%, #1a5c38 100%);
+    color: white; padding: 16px 24px;
+    display: flex; align-items: center; justify-content: space-between;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    position: sticky; top: 0; z-index: 100;
+  }
+  header .logo { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 700; }
+  header .logo span { font-size: 26px; }
+  header .subtitle { font-size: 12px; opacity: 0.8; margin-top: 2px; }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+
+  .api-banner {
+    background: #fff3cd; border: 1px solid #ffc107; border-radius: 10px;
+    padding: 14px 18px; margin-bottom: 20px;
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  }
+  .api-banner .icon { font-size: 22px; }
+  .api-banner input {
+    flex: 1; min-width: 200px; padding: 8px 12px;
+    border: 1px solid #ffc107; border-radius: 6px; font-size: 13px; font-family: monospace;
+  }
+  .api-banner button {
+    padding: 8px 16px; background: #2d7a4f; color: white;
+    border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; white-space: nowrap;
+  }
+  .api-banner a { color: #2d7a4f; font-size: 12px; text-decoration: none; white-space: nowrap; }
+  .api-banner a:hover { text-decoration: underline; }
+
+  .search-card {
+    background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06); border: 1px solid #dee2e6;
+  }
+  .search-card h2 { font-size: 15px; color: #2d7a4f; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .search-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 14px; }
+  .form-group label { display: block; font-size: 12px; color: #6c757d; margin-bottom: 5px; font-weight: 600; }
+  .form-group select, .form-group input[type="date"] {
+    width: 100%; padding: 9px 12px; border: 1px solid #dee2e6; border-radius: 8px;
+    font-size: 13px; color: #2c3e50; background: white; cursor: pointer;
+  }
+  .form-group select:focus, .form-group input[type="date"]:focus {
+    outline: none; border-color: #2d7a4f; box-shadow: 0 0 0 3px rgba(45,122,79,0.1);
+  }
+
+  .search-btn {
+    padding: 10px 28px; background: linear-gradient(135deg, #2d7a4f, #1a5c38); color: white;
+    border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer;
+    transition: all 0.2s; display: flex; align-items: center; gap: 8px;
+  }
+  .search-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(45,122,79,0.3); }
+  .search-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+  .quick-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #dee2e6; }
+  .quick-btns span { font-size: 12px; color: #6c757d; align-self: center; }
+  .quick-btn {
+    padding: 5px 12px; background: #e8f5ee; color: #2d7a4f;
+    border: 1px solid #b8dfc9; border-radius: 20px; font-size: 12px; cursor: pointer; font-weight: 600;
+  }
+  .quick-btn:hover { background: #2d7a4f; color: white; }
+
+  .stats-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 20px; }
+  .stat-card { background: white; border-radius: 10px; padding: 16px; border: 1px solid #dee2e6; }
+  .stat-card .label { font-size: 11px; color: #6c757d; font-weight: 600; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-card .value { font-size: 22px; font-weight: 700; color: #2c3e50; }
+  .stat-card .high-val { color: #e74c3c; }
+  .stat-card .low-val { color: #2980b9; }
+
+  .main-grid { display: grid; grid-template-columns: 1fr 380px; gap: 20px; }
+  @media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
+
+  .card {
+    background: white; border-radius: 12px; padding: 20px; border: 1px solid #dee2e6;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 20px;
+  }
+  .card h3 { font-size: 14px; color: #2d7a4f; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; font-weight: 700; }
+
+  .price-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .price-table th { background: #e8f5ee; color: #2d7a4f; padding: 10px 12px; text-align: left; font-weight: 700; font-size: 12px; border-bottom: 2px solid #b8dfc9; }
+  .price-table td { padding: 10px 12px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+  .price-table tr:hover td { background: #f8fbf9; }
+  .price-table .num { text-align: right; font-weight: 600; }
+  .price-table .high { color: #e74c3c; }
+  .price-table .avg { color: #2d7a4f; font-weight: 700; }
+  .price-table .low { color: #2980b9; }
+
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+  .badge-상 { background: #fdecea; color: #e74c3c; }
+  .badge-중 { background: #e8f5ee; color: #2d7a4f; }
+  .badge-하 { background: #e3f2fd; color: #2980b9; }
+  .badge-특 { background: #fff3e0; color: #e67e22; }
+
+  .chart-wrap { position: relative; height: 280px; }
+
+  .loading { text-align: center; padding: 40px; color: #6c757d; }
+  .spinner {
+    width: 36px; height: 36px; border: 3px solid #e8f5ee; border-top-color: #2d7a4f;
+    border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .empty { text-align: center; padding: 50px 20px; color: #6c757d; }
+  .empty .icon { font-size: 48px; margin-bottom: 12px; }
+
+  .market-name { font-weight: 600; }
+  .market-sub { font-size: 11px; color: #6c757d; }
+
+  .tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 2px solid #dee2e6; }
+  .tab { padding: 8px 16px; border: none; background: none; cursor: pointer; font-size: 13px; color: #6c757d; font-weight: 600; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+  .tab.active { color: #2d7a4f; border-bottom-color: #2d7a4f; }
+  .tab:hover { color: #2d7a4f; }
+
+  .info-box { background: #e8f5ee; border: 1px solid #b8dfc9; border-radius: 8px; padding: 12px 14px; font-size: 12px; color: #2d7a4f; line-height: 1.6; }
+
+  .demo-badge { display: inline-block; background: #ff9800; color: white; font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 700; margin-left: 8px; }
+
+  .bb-highlight { background: linear-gradient(135deg, #e8d5f5, #d5e8f5); border-radius: 8px; padding: 12px; margin-bottom: 10px; font-size: 12px; line-height: 1.6; }
+  .bb-highlight strong { font-size: 14px; color: #5c35a0; }
+
+  footer { text-align: center; padding: 20px; font-size: 11px; color: #6c757d; margin-top: 20px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <span>🌾</span>
+    <div>
+      <div>농수산물 도매시장 경매가격</div>
+      <div class="subtitle">KAMIS 연동 · 전국 도매시장 조회</div>
+    </div>
+  </div>
+  <div style="font-size:13px;opacity:0.9" id="today-date"></div>
+</header>
+
+<div class="container">
+
+  <!-- aT 바로가기 링크 바 -->
+  <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;padding:12px 16px;background:white;border-radius:10px;border:1px solid #dee2e6;align-items:center">
+    <span style="font-size:12px;color:#6c757d;font-weight:700;margin-right:4px">🔗 aT 바로가기:</span>
+    <a href="https://at.agromarket.kr/domeinfo/sanRealtime.do" target="_blank" style="padding:5px 12px;background:#e8f5ee;color:#2d7a4f;border:1px solid #b8dfc9;border-radius:16px;font-size:12px;font-weight:600;text-decoration:none">⚡ 실시간 경매현황</a>
+    <a href="https://at.agromarket.kr/domeinfo/marketTradeStatus.do" target="_blank" style="padding:5px 12px;background:#e3f2fd;color:#1565c0;border:1px solid #90caf9;border-radius:16px;font-size:12px;font-weight:600;text-decoration:none">📊 도매시장 거래현황</a>
+    <a href="https://at.agromarket.kr/users/price/wholesale/daily.do" target="_blank" style="padding:5px 12px;background:#fff3e0;color:#e65100;border:1px solid #ffcc80;border-radius:16px;font-size:12px;font-weight:600;text-decoration:none">🏪 중도매인 판매정보</a>
+    <a href="https://at.agromarket.kr/domeinfo/auctionMid.do" target="_blank" style="padding:5px 12px;background:#f3e8ff;color:#6a1b9a;border:1px solid #ce93d8;border-radius:16px;font-size:12px;font-weight:600;text-decoration:none">📦 품목별 통계</a>
+    <a href="https://at.agromarket.kr/users/price/retail/daily.do" target="_blank" style="padding:5px 12px;background:#fce4ec;color:#880e4f;border:1px solid #f48fb1;border-radius:16px;font-size:12px;font-weight:600;text-decoration:none">🛒 소매가격정보</a>
+    <a href="https://at.agromarket.kr/dashBoard/saleDashBoard.do" target="_blank" style="padding:5px 12px;background:#e8eaf6;color:#283593;border:1px solid #9fa8da;border-radius:16px;font-size:12px;font-weight:600;text-decoration:none">🖥️ 종합상황판</a>
+  </div>
+
+  <!-- API Key Banner -->
+  <div class="api-banner" id="api-banner">
+    <span class="icon">🔑</span>
+    <div style="flex:1;min-width:160px">
+      <div style="font-size:13px;font-weight:700;color:#856404;margin-bottom:4px">KAMIS API 인증키가 필요합니다</div>
+      <div style="font-size:11px;color:#856404">
+        <a href="https://www.data.go.kr/tcs/dss/selectApiDataDetailView.do?publicDataPk=15100070" target="_blank">🔗 data.go.kr → 농산물 경락가격 API 신청 (무료)</a>
+        &nbsp;|&nbsp;
+        <a href="https://www.kamis.or.kr/customer/reference/openApi_list.do" target="_blank">KAMIS 신청</a>
+      </div>
+    </div>
+    <input type="text" id="api-key-input" placeholder="발급받은 API 인증키 입력..." />
+    <input type="text" id="api-id-input" placeholder="인증 ID (예: 111)" style="max-width:130px" />
+    <button onclick="saveApiKey()">저장</button>
+    <button onclick="useDemoMode()" style="background:#ff9800">데모로 보기</button>
+  </div>
+
+  <!-- Search Panel -->
+  <div class="search-card">
+    <h2>🔍 경매가격 조회 조건</h2>
+    <div class="search-grid">
+      <div class="form-group">
+        <label>품목 분류</label>
+        <select id="category" onchange="updateItemList()">
+          <option value="">전체</option>
+          <option value="100">🌾 식량작물</option>
+          <option value="200">🥬 채소류</option>
+          <option value="300">🌿 특용작물</option>
+          <option value="400">🍎 과일류</option>
+          <option value="500">🥩 축산물</option>
+          <option value="600">🐟 수산물</option>
+          <option value="700">🌲 임산물</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>품목</label>
+        <select id="item">
+          <option value="">전체 품목</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>등급</label>
+        <select id="grade">
+          <option value="">전체</option>
+          <option value="상">상(上)</option>
+          <option value="중">중(中)</option>
+          <option value="하">하(下)</option>
+          <option value="특">특(特)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>도매시장 (전국 32개)</label>
+        <select id="market">
+          <option value="">전국</option>
+          <optgroup label="📍 서울·수도권">
+            <option value="110001">서울 가락동</option>
+            <option value="110002">서울 강서</option>
+            <option value="230001">인천 삼산</option>
+            <option value="230002">인천 남촌</option>
+            <option value="310001">수원</option>
+            <option value="310002">안양</option>
+            <option value="310003">안산</option>
+            <option value="310004">구리</option>
+          </optgroup>
+          <optgroup label="📍 강원">
+            <option value="410001">춘천</option>
+            <option value="410002">원주</option>
+            <option value="410003">강릉</option>
+          </optgroup>
+          <optgroup label="📍 충청">
+            <option value="430001">청주</option>
+            <option value="430002">충주</option>
+            <option value="440001">천안</option>
+            <option value="260001">대전 오정</option>
+            <option value="260002">대전 노은</option>
+          </optgroup>
+          <optgroup label="📍 전라·광주">
+            <option value="250001">광주 각화</option>
+            <option value="250002">광주 서부</option>
+            <option value="450001">전주</option>
+            <option value="450002">익산</option>
+            <option value="450003">정읍</option>
+            <option value="460001">순천</option>
+          </optgroup>
+          <optgroup label="📍 경상·대구·부산">
+            <option value="220001">대구 북부</option>
+            <option value="210001">부산 엄궁</option>
+            <option value="210002">부산 반여</option>
+            <option value="290001">울산</option>
+            <option value="480001">포항</option>
+            <option value="480002">안동</option>
+            <option value="480003">구미</option>
+            <option value="490001">창원 팔용</option>
+            <option value="490002">창원 내서</option>
+            <option value="490003">진주</option>
+          </optgroup>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>조회 날짜</label>
+        <input type="date" id="search-date" />
+      </div>
+      <div class="form-group">
+        <label>조회 기간</label>
+        <select id="period">
+          <option value="1">오늘</option>
+          <option value="7" selected>7일</option>
+          <option value="30">30일</option>
+          <option value="90">90일</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <button class="search-btn" onclick="searchPrices()" id="search-btn">
+        <span>🔍</span> 경매가격 조회
+      </button>
+      <span style="font-size:12px;color:#6c757d">데이터: KAMIS(농산물유통정보) · aT한국농수산식품유통공사</span>
+    </div>
+    <div class="quick-btns">
+      <span>즐겨찾기:</span>
+      <button class="quick-btn" onclick="quickSearch('블루베리')">🫐 블루베리</button>
+      <button class="quick-btn" onclick="quickSearch('딸기')">🍓 딸기</button>
+      <button class="quick-btn" onclick="quickSearch('사과')">🍎 사과</button>
+      <button class="quick-btn" onclick="quickSearch('배추')">🥬 배추</button>
+      <button class="quick-btn" onclick="quickSearch('토마토')">🍅 토마토</button>
+      <button class="quick-btn" onclick="quickSearch('고추(홍)')">🌶️ 고추</button>
+      <button class="quick-btn" onclick="quickSearch('양파')">🧅 양파</button>
+      <button class="quick-btn" onclick="quickSearch('감자')">🥔 감자</button>
+      <span style="margin-left:8px;padding-left:8px;border-left:1px solid #dee2e6">관심목록:</span>
+      <div id="watchlist-btns" style="display:contents"></div>
+      <button class="quick-btn" onclick="addToWatchlist()" style="background:#fff3e0;color:#e65100;border-color:#ffcc80">+ 현재 조건 저장</button>
+    </div>
+  </div>
+
+  <!-- Stats Bar -->
+  <div class="stats-bar" id="stats-bar" style="display:none">
+    <div class="stat-card">
+      <div class="label">📦 조회 품목</div>
+      <div class="value" id="stat-item">-</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">💰 평균 경매가</div>
+      <div class="value" id="stat-avg">-</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">📈 최고가</div>
+      <div class="value high-val" id="stat-high">-</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">📉 최저가</div>
+      <div class="value low-val" id="stat-low">-</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">🏪 조회 시장수</div>
+      <div class="value" id="stat-markets">-</div>
+    </div>
+  </div>
+
+  <!-- Main Grid -->
+  <div class="main-grid">
+
+    <!-- Left -->
+    <div>
+      <!-- Chart Card -->
+      <div class="card" id="chart-card" style="display:none">
+        <h3>📈 기간별 경매가 추이</h3>
+        <div class="tabs">
+          <button class="tab active" onclick="switchTab('chart', event)">차트</button>
+          <button class="tab" onclick="switchTab('table', event)">전체 테이블</button>
+        </div>
+        <div id="chart-panel">
+          <div class="chart-wrap"><canvas id="priceChart"></canvas></div>
+        </div>
+        <div id="table-panel" style="display:none;overflow-x:auto">
+          <table class="price-table">
+            <thead>
+              <tr>
+                <th>날짜</th><th>품목</th><th>품종</th>
+                <th>등급</th><th>단위</th>
+                <th class="num">당일가</th><th class="num">1주전</th><th class="num">1개월전</th><th class="num">1년전</th>
+              </tr>
+            </thead>
+            <tbody id="full-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Results -->
+      <div class="card">
+        <h3>🏪 시장별 경매가격 <span id="result-count" style="font-size:12px;color:#6c757d;font-weight:400"></span></h3>
+        <div id="result-area">
+          <div class="empty">
+            <div class="icon">🌾</div>
+            <div style="font-size:15px;font-weight:600;margin-bottom:8px">조회 조건을 설정하고 검색하세요</div>
+            <div style="font-size:13px">전국 도매시장의 실시간 경매가격을 확인할 수 있습니다</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Sidebar -->
+    <div>
+      <div class="card">
+        <h3>🫐 블루베리 시장 정보</h3>
+        <div class="bb-highlight">
+          <strong>메도우라크 · 인디고 (남부하이부시)</strong>
+          <div style="margin-top:6px;font-size:12px;color:#5c35a0">ℹ️ 남부하이부시는 일반 대비 당도·크기 프리미엄 가격 형성</div>
+        </div>
+        <div id="bb-price-info">
+          <div style="font-size:12px;color:#6c757d;text-align:center;padding:20px">블루베리 검색 시 시세 정보가 표시됩니다</div>
+        </div>
+        <button class="search-btn" style="width:100%;justify-content:center;margin-top:12px;font-size:13px" onclick="quickSearch('블루베리')">
+          🫐 블루베리 가격 바로 조회
+        </button>
+      </div>
+
+      <div class="card">
+        <h3>📊 전국 32개 도매시장</h3>
+        <div style="font-size:11px;line-height:1.9;color:#2c3e50;max-height:200px;overflow-y:auto">
+          <div style="padding:3px 0;border-bottom:1px solid #f5f5f5">🏛️ <strong>서울 가락동</strong> — 국내 최대</div>
+          <div style="padding:3px 0;border-bottom:1px solid #f5f5f5">🏛️ <strong>서울 강서</strong></div>
+          <div style="padding:3px 0;border-bottom:1px solid #f5f5f5">🏛️ <strong>광주 각화·서부</strong> — 전남권</div>
+          <div style="padding:3px 0;border-bottom:1px solid #f5f5f5">🏛️ <strong>부산 엄궁·반여</strong> — 영남권</div>
+          <div style="padding:3px 0;border-bottom:1px solid #f5f5f5">🏛️ <strong>대구 북부</strong> — 경북권</div>
+          <div style="padding:3px 0;border-bottom:1px solid #f5f5f5">🏛️ <strong>대전 오정·노은</strong> — 충청권</div>
+          <div style="padding:3px 0;border-bottom:1px solid #f5f5f5">🏛️ <strong>인천 삼산·남촌</strong></div>
+          <div style="padding:3px 0;border-bottom:1px solid #f5f5f5">🏛️ <strong>수원·안양·안산·구리</strong></div>
+          <div style="padding:3px 0;border-bottom:1px solid #f5f5f5">🏛️ <strong>춘천·원주·강릉</strong> — 강원</div>
+          <div style="padding:3px 0;border-bottom:1px solid #f5f5f5">🏛️ <strong>청주·충주·천안</strong></div>
+          <div style="padding:3px 0;border-bottom:1px solid #f5f5f5">🏛️ <strong>전주·익산·정읍·순천</strong> — 전라</div>
+          <div style="padding:3px 0">🏛️ <strong>포항·안동·구미·창원·진주·울산</strong></div>
+        </div>
+        <a href="https://at.agromarket.kr/whsal/search.do" target="_blank" style="display:block;margin-top:10px;text-align:center;font-size:12px;color:#2d7a4f;font-weight:600;text-decoration:none;padding:6px;background:#e8f5ee;border-radius:6px">
+          🗺️ 전국 도매시장 검색 (aT)
+        </a>
+        <div class="info-box" style="margin-top:10px">
+          💡 경매가격은 당일 오전 경매 후 오후에 KAMIS 등록됩니다. 전일 데이터가 더 정확합니다.
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>🔑 API 키 발급 방법</h3>
+        <div style="background:#e3f2fd;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:#1565c0;font-weight:600">
+          ℹ️ 2025년 2월부터 aT OpenAPI는<br>공공데이터포털(data.go.kr)로 이관됨
+        </div>
+        <div style="font-size:12px;font-weight:700;color:#2d7a4f;margin-bottom:6px">📌 방법 1 — data.go.kr (aT 경매정보)</div>
+        <div style="font-size:12px;line-height:2;margin-bottom:12px">
+          <div>① <a href="https://www.data.go.kr" target="_blank" style="color:#2d7a4f;font-weight:600">data.go.kr</a> 접속 → 회원가입</div>
+          <div>② "공영도매시장 경매원천정보" 검색</div>
+          <div>③ <strong>활용신청</strong> → 즉시 또는 1~2일 승인</div>
+          <div>④ 마이페이지 → 인증키 확인 후 입력</div>
+        </div>
+        <div style="font-size:12px;font-weight:700;color:#2d7a4f;margin-bottom:6px">📌 방법 2 — KAMIS (농산물유통정보)</div>
+        <div style="font-size:12px;line-height:2;margin-bottom:12px">
+          <div>① <a href="https://www.kamis.or.kr" target="_blank" style="color:#2d7a4f;font-weight:600">kamis.or.kr</a> → 오픈API → 활용신청</div>
+          <div>② 회원가입 후 인증키 이메일 수신</div>
+        </div>
+        <div class="info-box">✅ 둘 다 무료 · data.go.kr 추천</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<footer>
+  데이터 출처: <a href="https://www.kamis.or.kr" target="_blank" style="color:#2d7a4f">KAMIS 농산물유통정보</a> · <a href="https://at.agromarket.kr" target="_blank" style="color:#2d7a4f">aT 도매시장 통합홈페이지</a> · <a href="https://www.data.go.kr" target="_blank" style="color:#2d7a4f">공공데이터포털</a><br>
+  본 앱은 개인 농장 관리용으로 제작되었습니다.
+</footer>
+
+<script>
+const CORS_PROXIES = [
+  url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+  url => `https://cors-anywhere.herokuapp.com/${url}`,
+];
+const KAMIS_BASE = 'https://www.kamis.or.kr/service/price/xml.do';
+
+let apiKey = localStorage.getItem('kamis_api_key') || '5e95b505-c3af-41cc-8d09-4b5a274d3db9';
+let apiId  = localStorage.getItem('kamis_api_id')  || '8314';
+let isDemoMode = false;
+let priceChart = null;
+
+const ITEMS = {
+  '100': [{code:'111',name:'쌀'},{code:'112',name:'찹쌀'},{code:'121',name:'콩'},{code:'131',name:'팥'},{code:'141',name:'녹두'},{code:'151',name:'옥수수'},{code:'152',name:'보리'},{code:'161',name:'고구마'},{code:'162',name:'감자'}],
+  '200': [{code:'211',name:'배추'},{code:'212',name:'얼갈이배추'},{code:'213',name:'양배추'},{code:'214',name:'상추'},{code:'215',name:'시금치'},{code:'216',name:'쑥갓'},{code:'217',name:'미나리'},{code:'218',name:'열무'},{code:'219',name:'깻잎'},{code:'221',name:'무'},{code:'222',name:'당근'},{code:'231',name:'오이'},{code:'232',name:'호박'},{code:'233',name:'가지'},{code:'241',name:'토마토'},{code:'242',name:'방울토마토'},{code:'251',name:'고추(홍)'},{code:'252',name:'풋고추'},{code:'253',name:'꽈리고추'},{code:'261',name:'마늘'},{code:'262',name:'양파'},{code:'263',name:'파'},{code:'264',name:'쪽파'},{code:'271',name:'표고버섯'},{code:'272',name:'느타리버섯'},{code:'273',name:'새송이버섯'},{code:'281',name:'브로콜리'},{code:'282',name:'파프리카'}],
+  '300': [{code:'311',name:'참깨'},{code:'312',name:'들깨'},{code:'321',name:'땅콩'},{code:'331',name:'인삼'},{code:'341',name:'블루베리'},{code:'342',name:'복분자'},{code:'351',name:'생강'}],
+  '400': [{code:'401',name:'수박'},{code:'402',name:'참외'},{code:'403',name:'딸기'},{code:'411',name:'사과'},{code:'412',name:'배'},{code:'413',name:'복숭아'},{code:'414',name:'포도'},{code:'415',name:'감(단감)'},{code:'416',name:'감(홍시)'},{code:'417',name:'자두'},{code:'418',name:'체리'},{code:'419',name:'매실'},{code:'421',name:'귤(온주)'},{code:'422',name:'한라봉'},{code:'423',name:'레몬'},{code:'431',name:'바나나'},{code:'432',name:'키위'},{code:'433',name:'망고'}],
+  '500': [{code:'511',name:'한우(등심)'},{code:'512',name:'한우(불고기)'},{code:'513',name:'수입쇠고기'},{code:'521',name:'돼지고기(삼겹살)'},{code:'531',name:'닭고기'},{code:'541',name:'계란'}],
+  '600': [{code:'611',name:'갈치'},{code:'612',name:'고등어'},{code:'613',name:'명태'},{code:'614',name:'참조기'},{code:'615',name:'오징어'},{code:'616',name:'꽃게'},{code:'617',name:'새우'},{code:'618',name:'전복'},{code:'619',name:'굴'},{code:'621',name:'광어'},{code:'622',name:'우럭'},{code:'631',name:'건멸치'}],
+  '700': [{code:'711',name:'밤'},{code:'712',name:'호두'},{code:'713',name:'잣'},{code:'721',name:'표고버섯(건)'},{code:'731',name:'도라지'},{code:'732',name:'더덕'}],
+};
+const ALL_ITEMS = Object.entries(ITEMS).flatMap(([cat,items]) => items.map(i=>({...i,cat})));
+
+document.addEventListener('DOMContentLoaded', () => {
+  const today = new Date();
+  document.getElementById('today-date').textContent =
+    today.toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric',weekday:'short'});
+  document.getElementById('search-date').value = today.toISOString().slice(0,10);
+  if (apiKey) {
+    document.getElementById('api-key-input').value = apiKey;
+    document.getElementById('api-id-input').value = apiId;
+    document.getElementById('api-banner').style.display = 'none';
+  }
+});
+
+function saveApiKey() {
+  const key = document.getElementById('api-key-input').value.trim();
+  const id  = document.getElementById('api-id-input').value.trim() || '111';
+  if (!key) { alert('API 키를 입력해주세요.'); return; }
+  apiKey = key; apiId = id;
+  localStorage.setItem('kamis_api_key', key);
+  localStorage.setItem('kamis_api_id', id);
+  isDemoMode = false;
+  document.getElementById('api-banner').style.display = 'none';
+  alert('✅ API 키가 저장되었습니다!');
+}
+
+function useDemoMode() {
+  isDemoMode = true;
+  document.getElementById('api-banner').style.display = 'none';
+  alert('📊 데모 모드로 실행합니다.\n샘플 데이터로 앱 기능을 확인하세요.');
+}
+
+function updateItemList() {
+  const cat = document.getElementById('category').value;
+  const sel = document.getElementById('item');
+  sel.innerHTML = '<option value="">전체 품목</option>';
+  const items = cat ? (ITEMS[cat]||[]) : ALL_ITEMS;
+  items.forEach(i => {
+    const opt = document.createElement('option');
+    opt.value = i.code; opt.textContent = i.name;
+    sel.appendChild(opt);
+  });
+}
+
+function quickSearch(name) {
+  const found = ALL_ITEMS.find(i => i.name === name || i.name.includes(name));
+  if (found) {
+    document.getElementById('category').value = found.cat;
+    updateItemList();
+    document.getElementById('item').value = found.code;
+  }
+  document.getElementById('period').value = '30';
+  searchPrices();
+}
+
+function switchTab(tab, e) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  e.target.classList.add('active');
+  document.getElementById('chart-panel').style.display = tab==='chart' ? 'block' : 'none';
+  document.getElementById('table-panel').style.display = tab==='table' ? 'block' : 'none';
+}
+
+async function searchPrices() {
+  if (!apiKey && !isDemoMode) { alert('API 키를 입력하거나 데모 모드를 선택해주세요.'); return; }
+  const catVal  = document.getElementById('category').value;
+  const itemVal = document.getElementById('item').value;
+  if (!catVal && !itemVal) { alert('품목 분류 또는 품목을 하나 이상 선택해주세요.'); return; }
+  const btn = document.getElementById('search-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.4);border-top-color:white;border-radius:50%;animation:spin 0.8s linear infinite;vertical-align:middle;margin-right:6px"></span> 조회 중...';
+  document.getElementById('result-area').innerHTML = '<div class="loading"><div class="spinner"></div><div>경매가격 조회 중...</div></div>';
+  try {
+    const data = isDemoMode ? await fetchDemoData() : await fetchKamisData();
+    renderResults(data);
+    renderChart(data);
+    renderStats(data);
+  } catch(e) {
+    document.getElementById('result-area').innerHTML =
+      `<div class="empty"><div class="icon">⚠️</div><div style="font-size:14px;font-weight:600;margin-bottom:8px">데이터 조회 실패</div><div style="font-size:12px">${e.message}<br><br>API 키를 확인하거나 데모 모드를 사용해보세요.</div></div>`;
+  }
+  btn.disabled = false;
+  btn.innerHTML = '<span>🔍</span> 경매가격 조회';
+}
+
+async function fetchKamisData() {
+  const itemCode = document.getElementById('item').value;
+  const catCode  = document.getElementById('category').value;
+  const grade    = document.getElementById('grade').value;
+  const regday   = document.getElementById('search-date').value;
+
+  const params = new URLSearchParams({
+    action: 'dailyPriceByCategoryList',
+    p_cert_key: apiKey,
+    p_cert_id: apiId,
+    p_returntype: 'json',
+    p_product_cls_code: '02',
+    p_item_category_code: catCode||'',
+    p_item_code: itemCode||'',
+    p_regday: regday,
+    p_convert_kg_yn: 'N',
+  });
+
+  const url = `${KAMIS_BASE}?${params}`;
+
+  let res;
+  for (const makeProxy of CORS_PROXIES) {
+    try {
+      res = await fetch(makeProxy(url), { signal: AbortSignal.timeout(8000) });
+      if (res.ok) break;
+    } catch(e) { res = null; }
+  }
+  if (!res || !res.ok) throw new Error('네트워크 연결 오류. 잠시 후 다시 시도해주세요.');
+  const json = await res.json();
+  if (json.data?.error_code && json.data.error_code !== '000') throw new Error('API 오류: ' + json.data.error_code);
+  if (!json.data?.item?.length) throw new Error('조회된 데이터가 없습니다. 날짜나 조건을 변경해보세요.');
+
+  const gradeFilter = grade;
+  return json.data.item
+    .filter(item => {
+      if (gradeFilter && item.rank !== gradeFilter) return false;
+      return parseInt((item.dpr1||'0').replace(/,/g,'')) > 0;
+    })
+    .map(item => ({
+      date:  regday,
+      market: item.kind_name || item.kindname || '-',
+      item:  item.item_name || item.itemname || '-',
+      grade: item.rank || item.graderank || '-',
+      unit:  item.unit || '-',
+      avg:   parseInt((item.dpr1||'0').replace(/,/g,''))||0,
+      high:  parseInt((item.dpr3||'0').replace(/,/g,''))||0,
+      low:   parseInt((item.dpr5||'0').replace(/,/g,''))||0,
+      week1: parseInt((item.dpr3||'0').replace(/,/g,''))||0,
+      week2: parseInt((item.dpr4||'0').replace(/,/g,''))||0,
+      month1:parseInt((item.dpr5||'0').replace(/,/g,''))||0,
+      year1: parseInt((item.dpr6||'0').replace(/,/g,''))||0,
+    }));
+}
+
+async function fetchDemoData() {
+  await new Promise(r=>setTimeout(r,700));
+  const itemSel = document.getElementById('item');
+  const itemName = itemSel.options[itemSel.selectedIndex]?.text || '블루베리';
+  if (itemName === '전체 품목') return fetchDemoData2();
+  const period = parseInt(document.getElementById('period').value);
+
+  const markets = ['서울 가락동','서울 강서','광주 각화','부산 엄궁','대구 매천'];
+  const grades  = ['상','중','하'];
+  const bp = {
+    '블루베리':{unit:'1kg',base:12000,range:4000},
+    '딸기':{unit:'1kg',base:18000,range:5000},
+    '사과':{unit:'10kg',base:35000,range:8000},
+    '배':{unit:'15kg',base:42000,range:10000},
+    '배추':{unit:'10kg',base:8000,range:3000},
+    '토마토':{unit:'5kg',base:14000,range:4000},
+    '감자':{unit:'20kg',base:22000,range:5000},
+    '고추(홍)':{unit:'1kg',base:9000,range:3000},
+    '양파':{unit:'20kg',base:18000,range:4000},
+  }[itemName] || {unit:'1kg',base:10000,range:3000};
+
+  const data = [];
+  const today = new Date();
+  for (let d=0; d<period; d++) {
+    const dt = new Date(today); dt.setDate(dt.getDate()-d);
+    if (dt.getDay()===0) continue;
+    const dateStr = dt.toISOString().slice(0,10);
+    const dayFactor = 1 + Math.sin(d*0.3)*0.08;
+    const numMarkets = d < 5 ? markets.length : Math.ceil(markets.length/2);
+    for (const market of markets.slice(0,numMarkets)) {
+      const grade = grades[Math.floor(Math.random()*3)];
+      const mul = grade==='상'?1.2:grade==='중'?1.0:0.8;
+      const base = Math.round(bp.base * dayFactor * mul);
+      const sp = Math.round(bp.range*0.4);
+      data.push({date:dateStr,market,item:itemName,kind:'-',grade,unit:bp.unit,
+        high:base+sp+Math.round(Math.random()*sp*0.5),
+        avg:base+Math.round((Math.random()-0.5)*sp),
+        low:base-sp-Math.round(Math.random()*sp*0.5),
+      });
+    }
+  }
+  return data.sort((a,b)=>b.date.localeCompare(a.date));
+}
+
+function fetchDemoData2() {
+  // 전체 품목 샘플
+  return [
+    {date:new Date().toISOString().slice(0,10),market:'서울 가락동',item:'블루베리',kind:'-',grade:'상',unit:'1kg',high:15000,avg:12500,low:10000},
+    {date:new Date().toISOString().slice(0,10),market:'서울 가락동',item:'딸기',kind:'설향',grade:'상',unit:'1kg',high:22000,avg:18000,low:14000},
+    {date:new Date().toISOString().slice(0,10),market:'서울 가락동',item:'사과',kind:'후지',grade:'상',unit:'10kg',high:45000,avg:38000,low:30000},
+    {date:new Date().toISOString().slice(0,10),market:'광주 각화',item:'블루베리',kind:'-',grade:'중',unit:'1kg',high:13000,avg:10000,low:8000},
+    {date:new Date().toISOString().slice(0,10),market:'광주 각화',item:'배추',kind:'-',grade:'상',unit:'10kg',high:12000,avg:9000,low:7000},
+  ];
+}
+
+function renderStats(data) {
+  if (!data.length) return;
+  const avgs = data.map(d=>d.avg).filter(v=>v>0);
+  const highs = data.map(d=>d.high).filter(v=>v>0);
+  const lows = data.map(d=>d.low).filter(v=>v>0);
+  document.getElementById('stat-item').textContent = data[0]?.item||'-';
+  document.getElementById('stat-avg').textContent = formatNum(Math.round(avgs.reduce((a,b)=>a+b,0)/avgs.length))+'원';
+  document.getElementById('stat-high').textContent = formatNum(Math.max(...highs))+'원';
+  document.getElementById('stat-low').textContent = formatNum(Math.min(...lows))+'원';
+  document.getElementById('stat-markets').textContent = new Set(data.map(d=>d.market)).size+'개';
+  document.getElementById('stats-bar').style.display = 'grid';
+
+  if (data[0]?.item?.includes('블루베리')) {
+    const latestAvg = data[0]?.avg||0;
+    document.getElementById('bb-price-info').innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+        <div style="background:#f3e8ff;border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:10px;color:#7c3aed;font-weight:700;margin-bottom:4px">최근 평균가</div>
+          <div style="font-size:20px;font-weight:700;color:#5c35a0">${formatNum(latestAvg)}</div>
+          <div style="font-size:11px;color:#7c3aed">원/${data[0]?.unit}</div>
+        </div>
+        <div style="background:#e8f5ee;border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:10px;color:#2d7a4f;font-weight:700;margin-bottom:4px">최고가</div>
+          <div style="font-size:20px;font-weight:700;color:#2d7a4f">${formatNum(Math.max(...highs))}</div>
+          <div style="font-size:11px;color:#2d7a4f">원/${data[0]?.unit}</div>
+        </div>
+      </div>
+      <div style="margin-top:10px;font-size:11px;color:#6c757d;line-height:1.7">
+        📌 조기출하 기준: 서울 가락동 평균가 참고<br>
+        📌 직거래 권장가: 도매가 × 1.5~2.0배
+      </div>
+    `;
+  }
+}
+
+function renderResults(data) {
+  if (!data.length) {
+    document.getElementById('result-area').innerHTML = '<div class="empty"><div class="icon">📭</div><div>조건에 맞는 데이터가 없습니다.</div></div>';
+    document.getElementById('result-count').textContent = '';
+    return;
+  }
+  document.getElementById('result-count').textContent = `(${data.length}건)` + (isDemoMode?' 🟠데모':'');
+
+  const rows = data.map(d => {
+    const changeRate = d.week1 > 0 ? Math.round((d.avg - d.week1) / d.week1 * 100) : 0;
+    const arrow = changeRate > 0 ? `<span style="color:#e74c3c">▲${changeRate}%</span>` : changeRate < 0 ? `<span style="color:#2980b9">▼${Math.abs(changeRate)}%</span>` : '<span style="color:#999">-</span>';
+    return `
+    <tr>
+      <td><div class="market-name">${d.item}</div><div class="market-sub">${d.date}</div></td>
+      <td>${d.market}</td>
+      <td><span class="badge badge-${d.grade === '상품' ? '상' : d.grade === '중품' ? '중' : '하'}">${d.grade}</span></td>
+      <td>${d.unit}</td>
+      <td class="num avg">${formatNum(d.avg)}</td>
+      <td class="num" style="color:#6c757d">${d.week1 > 0 ? formatNum(d.week1) : '-'}</td>
+      <td class="num" style="color:#6c757d">${d.month1 > 0 ? formatNum(d.month1) : '-'}</td>
+      <td class="num">${arrow}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('result-area').innerHTML = `
+    <div style="font-size:12px;color:#6c757d;margin-bottom:8px">
+      📅 ${data[0].date} 기준 도매가격 (KAMIS 전국 평균)${isDemoMode?'<span class="demo-badge">DEMO</span>':''}
+    </div>
+    <div style="overflow-x:auto">
+      <table class="price-table">
+        <thead><tr><th>품목</th><th>품종</th><th>등급</th><th>단위</th><th class="num">당일가(원)</th><th class="num">1주전(원)</th><th class="num">1개월전(원)</th><th class="num">전주비</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+
+  const allRows = data.map(d=>`
+    <tr>
+      <td>${d.date}</td><td>${d.item}</td><td>${d.market}</td>
+      <td><span class="badge badge-${d.grade === '상품' ? '상' : '중'}">${d.grade}</span></td>
+      <td>${d.unit}</td>
+      <td class="num avg">${formatNum(d.avg)}</td>
+      <td class="num">${d.week1 > 0 ? formatNum(d.week1) : '-'}</td>
+      <td class="num">${d.month1 > 0 ? formatNum(d.month1) : '-'}</td>
+      <td class="num">${d.year1 > 0 ? formatNum(d.year1) : '-'}</td>
+    </tr>`).join('');
+  document.getElementById('full-table-body').innerHTML = allRows;
+}
+
+function renderChart(data) {
+  if (!data.length) return;
+  document.getElementById('chart-card').style.display = 'block';
+
+  const byDate = {};
+  data.forEach(d=>{
+    if(!byDate[d.date]) byDate[d.date]={highs:[],avgs:[],lows:[]};
+    byDate[d.date].highs.push(d.high);
+    byDate[d.date].avgs.push(d.avg);
+    byDate[d.date].lows.push(d.low);
+  });
+
+  const labels = Object.keys(byDate).sort();
+  const avg = labels.map(dt=>Math.round(byDate[dt].avgs.reduce((a,b)=>a+b,0)/byDate[dt].avgs.length));
+  const high = labels.map(dt=>Math.round(byDate[dt].highs.reduce((a,b)=>a+b,0)/byDate[dt].highs.length));
+  const low  = labels.map(dt=>Math.round(byDate[dt].lows.reduce((a,b)=>a+b,0)/byDate[dt].lows.length));
+
+  const ctx = document.getElementById('priceChart').getContext('2d');
+  if (priceChart) priceChart.destroy();
+
+  priceChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels.map(d=>d.slice(5)),
+      datasets: [
+        {label:'최고가',data:high,borderColor:'#e74c3c',backgroundColor:'rgba(231,76,60,0.05)',borderWidth:1.5,pointRadius:2,tension:0.3},
+        {label:'평균가',data:avg,borderColor:'#2d7a4f',backgroundColor:'rgba(45,122,79,0.08)',borderWidth:2.5,pointRadius:3,tension:0.3,fill:true},
+        {label:'최저가',data:low,borderColor:'#2980b9',backgroundColor:'rgba(41,128,185,0.05)',borderWidth:1.5,pointRadius:2,tension:0.3},
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{position:'top',labels:{font:{size:12}}},
+        tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${formatNum(ctx.raw)}원`}}
+      },
+      scales:{
+        y:{ticks:{callback:val=>formatNum(val)+'원',font:{size:11}}},
+        x:{ticks:{font:{size:11}}}
+      }
+    }
+  });
+}
+
+function formatNum(n) {
+  if(!n||isNaN(n)) return '-';
+  return n.toLocaleString('ko-KR');
+}
+
+// ==================== 관심목록 ====================
+let watchlist = JSON.parse(localStorage.getItem('watchlist') || '[]');
+
+function renderWatchlist() {
+  const container = document.getElementById('watchlist-btns');
+  container.innerHTML = '';
+  watchlist.forEach((item, idx) => {
+    const btn = document.createElement('button');
+    btn.className = 'quick-btn';
+    btn.style.cssText = 'background:#fff8e1;color:#f57f17;border-color:#ffe082;position:relative;padding-right:22px';
+    btn.innerHTML = `⭐ ${item.label}`;
+    btn.onclick = () => applyWatchlist(item);
+    // 삭제 버튼
+    const del = document.createElement('span');
+    del.textContent = '×';
+    del.style.cssText = 'position:absolute;right:5px;top:50%;transform:translateY(-50%);font-size:14px;color:#999;cursor:pointer;font-weight:700';
+    del.onclick = (e) => { e.stopPropagation(); removeWatchlist(idx); };
+    btn.appendChild(del);
+    container.appendChild(btn);
+  });
+}
+
+function addToWatchlist() {
+  const itemSel = document.getElementById('item');
+  const catSel  = document.getElementById('category');
+  const marketSel = document.getElementById('market');
+  const gradeSel  = document.getElementById('grade');
+
+  const itemName   = itemSel.options[itemSel.selectedIndex]?.text || '전체';
+  const marketName = marketSel.options[marketSel.selectedIndex]?.text || '전국';
+  const label = `${itemName}/${marketName}`;
+
+  if (watchlist.find(w => w.label === label)) {
+    alert('이미 관심목록에 있습니다!'); return;
+  }
+  if (watchlist.length >= 3) {
+    alert('검색조건은 최대 3개까지 저장 가능합니다.\n기존 항목을 삭제 후 추가해주세요.'); return;
+  }
+
+  watchlist.push({
+    label,
+    cat:    catSel.value,
+    item:   itemSel.value,
+    market: marketSel.value,
+    grade:  gradeSel.value,
+    period: document.getElementById('period').value,
+  });
+  localStorage.setItem('watchlist', JSON.stringify(watchlist));
+  renderWatchlist();
+  alert(`✅ "${label}" 관심목록에 저장했습니다!`);
+}
+
+function applyWatchlist(item) {
+  document.getElementById('category').value = item.cat;
+  updateItemList();
+  document.getElementById('item').value    = item.item;
+  document.getElementById('market').value  = item.market;
+  document.getElementById('grade').value   = item.grade;
+  document.getElementById('period').value  = item.period;
+  searchPrices();
+}
+
+function removeWatchlist(idx) {
+  watchlist.splice(idx, 1);
+  localStorage.setItem('watchlist', JSON.stringify(watchlist));
+  renderWatchlist();
+}
+
+// 초기 렌더링 (기존 DOMContentLoaded에 추가)
+window.addEventListener('load', renderWatchlist);
+</script>
+</body>
+</html>
