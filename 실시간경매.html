@@ -187,6 +187,7 @@ let apiKey = localStorage.getItem('kamis_api_key') || '';
 let apiId  = localStorage.getItem('kamis_api_id')  || '8314';
 let selCat = '400';
 let selItem = '';
+let rawData = [];
 let allData = [];
 
 // ===================== 초기화 =====================
@@ -244,6 +245,9 @@ function renderSubCats() {
 function selectItem(code, name) {
   selItem = code;
   renderSubCats();
+  const itemName = getItemName(selItem);
+  if (selItem && NO_KAMIS.includes(itemName)) { showNoKamis(itemName); return; }
+  filterAndRender();
 }
 
 
@@ -262,10 +266,8 @@ async function doSearch() {
   document.getElementById('result-info').textContent = '조회 중...';
 
   try {
-    const data = await fetchData();
-    allData = data;
-    renderList(sortData(data));
-    document.getElementById('result-info').innerHTML = `<strong>${data.length}건</strong> 조회됨`;
+    rawData = await fetchData();
+    filterAndRender();
     document.getElementById('last-update').textContent = new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}) + ' 기준';
   } catch(e) {
     list.innerHTML = `<div class="empty"><div class="icon">⚠️</div><div style="font-size:14px;font-weight:600;margin-bottom:6px">조회 실패</div><div style="font-size:12px;color:#999">${e.message}</div></div>`;
@@ -290,7 +292,6 @@ async function fetchData() {
     p_returntype: 'json',
     p_product_cls_code: '02',
     p_item_category_code: selCat || '',
-    p_item_code: selItem || '',
     p_regday: regday,
     p_convert_kg_yn: 'N',
   });
@@ -307,13 +308,8 @@ async function fetchData() {
   const json = await res.json();
   if (!json.data?.item?.length) throw new Error('해당 날짜의 데이터가 없습니다.\n평일 날짜로 변경해보세요.');
 
-  const itemName = getItemName(selItem);
   return json.data.item
-    .filter(item => {
-      const name = (item.item_name || '').trim();
-      if (selItem && itemName && name !== itemName) return false;
-      return parseInt((item.dpr1||'0').replace(/,/g,'')) > 0;
-    })
+    .filter(item => parseInt((item.dpr1||'0').replace(/,/g,'')) > 0)
     .map(item => ({
       item:   item.item_name || '-',
       kind:   item.kind_name || '-',
@@ -325,6 +321,18 @@ async function fetchData() {
       year1:  parseInt((item.dpr6||'0').replace(/,/g,'')) || 0,
       date:   document.getElementById('search-date').value,
     }));
+}
+
+function filterAndRender() {
+  const itemName = getItemName(selItem);
+  if (selItem && itemName) {
+    const exact = rawData.filter(d => d.item === itemName);
+    allData = exact.length > 0 ? exact : rawData.filter(d => d.item.includes(itemName));
+  } else {
+    allData = rawData;
+  }
+  renderList(sortData(allData));
+  document.getElementById('result-info').innerHTML = `<strong>${allData.length}건</strong> 조회됨`;
 }
 
 function sortData(data) {
