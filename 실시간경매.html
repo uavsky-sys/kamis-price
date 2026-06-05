@@ -39,9 +39,8 @@ header .refresh-btn { background:rgba(255,255,255,0.2); border:none; color:#fff;
 .cat-tab { flex:none; padding:10px 14px; font-size:13px; font-weight:600; color:var(--sub); border:none; background:none; cursor:pointer; border-bottom:3px solid transparent; white-space:nowrap; }
 .cat-tab.active { color:var(--green); border-bottom-color:var(--green); }
 
-.sub-cats { display:flex; overflow-x:auto; padding:8px 10px; gap:8px; scrollbar-width:none; }
-.sub-cats::-webkit-scrollbar { display:none; }
-.sub-btn { flex:none; padding:5px 12px; border:1px solid var(--border); border-radius:20px; font-size:12px; font-weight:600; color:var(--sub); background:#fff; cursor:pointer; white-space:nowrap; }
+.sub-cats { display:flex; flex-wrap:wrap; padding:8px 10px; gap:6px; }
+.sub-btn { padding:5px 12px; border:1px solid var(--border); border-radius:20px; font-size:12px; font-weight:600; color:var(--sub); background:#fff; cursor:pointer; white-space:nowrap; }
 .sub-btn.active { background:var(--green); color:#fff; border-color:var(--green); }
 
 /* 시장 필터 */
