@@ -168,6 +168,15 @@ tbody td { padding:8px 4px; text-align:center; vertical-align:middle; line-heigh
   <a href="https://www.data.go.kr/tcs/dss/selectApiDataDetailView.do?publicDataPk=15100070" target="_blank" style="color:#1565c0;font-size:11px">🔗 data.go.kr에서 무료 발급</a>
 </div>
 
+<div class="api-banner" id="mafra-banner" style="border-color:#4caf50;background:#f1f8e9">
+  <div style="font-weight:700;color:#2e7d32;margin-bottom:6px">🔑 농림부 도매시장 API 키 설정</div>
+  <div class="row">
+    <input type="text" id="mafra-key-input" placeholder="data.mafra.go.kr API 키..." />
+    <button onclick="saveMrafaKey()" style="background:#2e7d32">저장</button>
+  </div>
+  <div style="color:#555;font-size:11px">로컬 서버(localhost)에서만 동작합니다.</div>
+</div>
+
 <!-- 상단 필터 패널 -->
 <div class="filter-panel">
   <div class="filter-grid">
@@ -181,13 +190,13 @@ tbody td { padding:8px 4px; text-align:center; vertical-align:middle; line-heigh
       <span class="fb-count" id="fb-cat-cnt"></span>
     </button>
     <button class="filter-btn" onclick="openSheet('item')">
-      <span class="fb-label">품목</span>
+      <span class="fb-label" id="fb-item-lbl">품목</span>
       <span class="fb-value" id="fb-item">전체</span>
       <span class="fb-count" id="fb-item-cnt"></span>
     </button>
     <button class="search-btn" onclick="doSearch()">검색</button>
     <button class="filter-btn" onclick="openSheet('kind')">
-      <span class="fb-label">품종</span>
+      <span class="fb-label" id="fb-kind-lbl">품종</span>
       <span class="fb-value" id="fb-kind">전체</span>
       <span class="fb-count" id="fb-kind-cnt"></span>
     </button>
@@ -252,6 +261,21 @@ const CATS = [
   {code:'500', name:'축산물'},
   {code:'600', name:'수산물'},
   {code:'700', name:'임산물'},
+  {code:'WHS', name:'도매시장'},
+];
+const MARKETS = [
+  {code:'110', name:'서울 가락'},
+  {code:'111', name:'서울 강서'},
+  {code:'120', name:'인천'},
+  {code:'130', name:'수원'},
+  {code:'210', name:'부산 엄궁'},
+  {code:'211', name:'부산 반여'},
+  {code:'220', name:'대구'},
+  {code:'230', name:'전주'},
+  {code:'240', name:'대전'},
+  {code:'250', name:'청주'},
+  {code:'260', name:'광주'},
+  {code:'270', name:'창원'},
 ];
 const ITEMS = {
   '':    [],
@@ -275,16 +299,20 @@ const SORT_OPTIONS = [
   {v:'item',      n:'품목명순'},
 ];
 
-let apiKey  = localStorage.getItem('kamis_api_key') || '';
-let apiId   = localStorage.getItem('kamis_api_id')  || '8314';
-let selDate = '';
-let selCat  = '400';
-let selItem = '';
-let selKind = '';
-let selGrade= '';
-let selSort = 'price-desc';
-let rawData = [];
-let allData = [];
+let apiKey    = localStorage.getItem('kamis_api_key') || '';
+let apiId     = localStorage.getItem('kamis_api_id')  || '8314';
+let mrafaKey  = localStorage.getItem('mafra_api_key') || '';
+let selDate   = '';
+let selCat    = '400';
+let selItem   = '';
+let selKind   = '';
+let selGrade  = '';
+let selSort   = 'price-desc';
+let selMarket = '110';
+let selCorp   = '';
+let rawData   = [];
+let allData   = [];
+let whlData   = [];
 let favorites = JSON.parse(localStorage.getItem('kamis_favs') || '[null,null,null]');
 if (!Array.isArray(favorites) || favorites.length < 3) favorites = [null,null,null];
 
@@ -304,6 +332,9 @@ document.addEventListener('DOMContentLoaded', () => {
   } else {
     document.getElementById('api-banner').style.display = 'block';
   }
+  if (mrafaKey) {
+    document.getElementById('mafra-key-input').value = mrafaKey;
+  }
 });
 
 function saveApiKey() {
@@ -314,6 +345,15 @@ function saveApiKey() {
   localStorage.setItem('kamis_api_key', k);
   localStorage.setItem('kamis_api_id',  id);
   document.getElementById('api-banner').style.display = 'none';
+  doSearch();
+}
+
+function saveMrafaKey() {
+  const k = document.getElementById('mafra-key-input').value.trim();
+  if (!k) { alert('API 키를 입력해주세요.'); return; }
+  mrafaKey = k;
+  localStorage.setItem('mafra_api_key', k);
+  document.getElementById('mafra-banner').style.display = 'none';
   doSearch();
 }
 
@@ -372,19 +412,36 @@ function renderFavorites() {
 
 // ===== 필터 패널 =====
 function updatePanel() {
-  const catName  = CATS.find(c=>c.code===selCat)?.name || '전체';
-  const itemName = getItemName(selItem) || (selItem || '전체');
-  document.getElementById('fb-date').textContent    = selDate.replace(/-/g,'') || '-';
-  document.getElementById('fb-cat').textContent     = catName;
-  document.getElementById('fb-cat-cnt').textContent = rawData.length ? `(${rawData.length})` : '';
-  document.getElementById('fb-item').textContent    = itemName;
-  document.getElementById('fb-item-cnt').textContent= allData.length ? `(${allData.length})` : '';
-  document.getElementById('fb-kind').textContent    = selKind  || '전체';
-  const kindBase = selItem ? allData : rawData;
-  document.getElementById('fb-kind-cnt').textContent= selKind ? `(${kindBase.filter(d=>d.kind===selKind).length})` : (kindBase.length?`(${kindBase.length})`:'');
-  document.getElementById('fb-grade').textContent   = selGrade || '전체';
-  document.getElementById('fb-grade-cnt').textContent= selGrade ? `(${allData.filter(d=>d.grade===selGrade).length})` : '';
-  document.getElementById('fb-sort').textContent    = SORT_OPTIONS.find(s=>s.v===selSort)?.n || '';
+  const catName = CATS.find(c=>c.code===selCat)?.name || '전체';
+  document.getElementById('fb-date').textContent = selDate.replace(/-/g,'') || '-';
+  document.getElementById('fb-cat').textContent  = catName;
+  document.getElementById('fb-sort').textContent = SORT_OPTIONS.find(s=>s.v===selSort)?.n || '';
+
+  if (selCat === 'WHS') {
+    const mktName = MARKETS.find(m=>m.code===selMarket)?.name || '가락';
+    document.getElementById('fb-item-lbl').textContent  = '도매시장';
+    document.getElementById('fb-item').textContent      = mktName;
+    document.getElementById('fb-item-cnt').textContent  = whlData.length ? `(${whlData.length})` : '';
+    document.getElementById('fb-kind-lbl').textContent  = '도매법인';
+    document.getElementById('fb-kind').textContent      = selCorp || '전체';
+    const corpBase = selCorp ? whlData.filter(d=>d.corp===selCorp) : whlData;
+    document.getElementById('fb-kind-cnt').textContent  = corpBase.length ? `(${corpBase.length})` : '';
+    document.getElementById('fb-grade').textContent     = '—';
+    document.getElementById('fb-grade-cnt').textContent = '';
+    document.getElementById('fb-cat-cnt').textContent   = '';
+  } else {
+    const itemName = getItemName(selItem) || (selItem || '전체');
+    document.getElementById('fb-item-lbl').textContent  = '품목';
+    document.getElementById('fb-item').textContent      = itemName;
+    document.getElementById('fb-item-cnt').textContent  = allData.length ? `(${allData.length})` : '';
+    document.getElementById('fb-kind-lbl').textContent  = '품종';
+    document.getElementById('fb-kind').textContent      = selKind || '전체';
+    const kindBase = selItem ? allData : rawData;
+    document.getElementById('fb-kind-cnt').textContent  = selKind ? `(${kindBase.filter(d=>d.kind===selKind).length})` : (kindBase.length?`(${kindBase.length})`:'');
+    document.getElementById('fb-grade').textContent     = selGrade || '전체';
+    document.getElementById('fb-grade-cnt').textContent = selGrade ? `(${allData.filter(d=>d.grade===selGrade).length})` : '';
+    document.getElementById('fb-cat-cnt').textContent   = rawData.length ? `(${rawData.length})` : '';
+  }
 }
 
 // ===== 보텀 시트 =====
@@ -401,19 +458,31 @@ function openSheet(type) {
     title = '분류 선택';
     options = CATS.map(c=>({val:c.code, label:c.name, cnt:null, active:selCat===c.code}));
   } else if (type === 'item') {
-    title = '품목 선택';
-    const catItems = ITEMS[selCat] || [];
-    options = [{val:'', label:'전체', cnt:rawData.length, active:selItem===''}];
-    catItems.forEach(i => {
-      const cnt = rawData.filter(d=>d.item===i.n||d.item.includes(i.n)).length;
-      if (cnt > 0) options.push({val:i.c, label:i.n, cnt, active:selItem===i.c});
-    });
+    if (selCat === 'WHS') {
+      title = '도매시장 선택';
+      options = MARKETS.map(m=>({val:m.code, label:m.name, cnt:null, active:selMarket===m.code}));
+    } else {
+      title = '품목 선택';
+      const catItems = ITEMS[selCat] || [];
+      options = [{val:'', label:'전체', cnt:rawData.length, active:selItem===''}];
+      catItems.forEach(i => {
+        const cnt = rawData.filter(d=>d.item===i.n||d.item.includes(i.n)).length;
+        if (cnt > 0) options.push({val:i.c, label:i.n, cnt, active:selItem===i.c});
+      });
+    }
   } else if (type === 'kind') {
-    title = '품종 선택';
-    const base = selItem ? allData : rawData;
-    const kinds = [...new Set(base.map(d=>d.kind))].sort();
-    options = [{val:'', label:'전체', cnt:base.length, active:selKind===''}];
-    kinds.forEach(k=>options.push({val:k, label:k, cnt:base.filter(d=>d.kind===k).length, active:selKind===k}));
+    if (selCat === 'WHS') {
+      title = '도매법인 선택';
+      const corps = [...new Set(whlData.map(d=>d.corp))].sort();
+      options = [{val:'', label:'전체', cnt:whlData.length, active:selCorp===''}];
+      corps.forEach(c=>options.push({val:c, label:c, cnt:whlData.filter(d=>d.corp===c).length, active:selCorp===c}));
+    } else {
+      title = '품종 선택';
+      const base = selItem ? allData : rawData;
+      const kinds = [...new Set(base.map(d=>d.kind))].sort();
+      options = [{val:'', label:'전체', cnt:base.length, active:selKind===''}];
+      kinds.forEach(k=>options.push({val:k, label:k, cnt:base.filter(d=>d.kind===k).length, active:selKind===k}));
+    }
   } else if (type === 'grade') {
     title = '등급 선택';
     const grades = [...new Set(allData.map(d=>d.grade))].sort();
@@ -436,22 +505,33 @@ function selectSheetItem(val) {
   closeSheet();
   if (curSheet === 'cat') {
     if (selCat === val) return;
-    selCat = val; selItem = ''; selKind = ''; selGrade = '';
+    selCat = val; selItem = ''; selKind = ''; selGrade = ''; selCorp = '';
     doSearch();
   } else if (curSheet === 'item') {
-    selItem = val; selKind = ''; selGrade = '';
-    const name = getItemName(val) || val;
-    if (val && NO_KAMIS.includes(name)) { showNoKamis(name); updatePanel(); return; }
-    filterAndRender();
+    if (selCat === 'WHS') {
+      if (selMarket === val) return;
+      selMarket = val; selCorp = '';
+      doSearch();
+    } else {
+      selItem = val; selKind = ''; selGrade = '';
+      const name = getItemName(val) || val;
+      if (val && NO_KAMIS.includes(name)) { showNoKamis(name); updatePanel(); return; }
+      filterAndRender();
+    }
   } else if (curSheet === 'kind') {
-    selKind = val; selGrade = '';
-    filterAndRender();
+    if (selCat === 'WHS') {
+      selCorp = val;
+      filterWholesale();
+    } else {
+      selKind = val; selGrade = '';
+      filterAndRender();
+    }
   } else if (curSheet === 'grade') {
     selGrade = val;
     filterAndRender();
   } else if (curSheet === 'sort') {
     selSort = val;
-    renderTable(sortData(allData));
+    if (selCat === 'WHS') { filterWholesale(); } else { renderTable(sortData(allData)); }
     updatePanel();
   }
 }
@@ -467,6 +547,67 @@ function selectDate(val) {
   doSearch();
 }
 
+// ===== 도매시장 조회 =====
+async function fetchWholesaleData() {
+  if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+    throw new Error('도매시장 기능은 로컬 서버(localhost)에서만 동작합니다. server.py를 실행해주세요.');
+  }
+  if (!mrafaKey) {
+    document.getElementById('mafra-banner').style.display = 'block';
+    throw new Error('농림부 API 키가 필요합니다.');
+  }
+  const dateStr = selDate.replace(/-/g,'');
+  const url = `/proxy/mafra/openapi/${mrafaKey}/json/Grid_20240625000000000654_1/1/500?SALEDATE=${dateStr}&WHSALCD=${selMarket}`;
+  const r = await fetch(url, {signal: AbortSignal.timeout(10000)});
+  if (!r.ok) throw new Error('API 오류 (HTTP ' + r.status + ')');
+  const json = await r.json();
+  if (json.result?.code && json.result.code !== 'INFO-000') throw new Error(json.result.message || 'API 오류');
+  const svc = json['Grid_20240625000000000654_1'];
+  if (!svc) throw new Error('응답 형식 오류');
+  const rows = svc.row || [];
+  return rows.map(r => ({
+    time:   r.AUCTN_TIME || r.SALETIME || '-',
+    item:   r.PRDLST_NM || r.ITEM_NM  || '-',
+    kind:   r.SANPUM_NM || r.PRDNM    || '-',
+    orig:   r.ORIG_NM   || r.ORIGIN   || '-',
+    qty:    parseFloat(r.TOTQTY || r.QTY || '0') || 0,
+    corp:   r.CPSL_NM   || r.WHLSALCO_NM || '-',
+    priceAvg: parseInt((r.AUCTN_PRC_AVG || r.AVG_PRC || '0').toString().replace(/,/g,'')) || 0,
+    priceMax: parseInt((r.AUCTN_PRC_MAX || r.MAX_PRC || '0').toString().replace(/,/g,'')) || 0,
+    priceMin: parseInt((r.AUCTN_PRC_MIN || r.MIN_PRC || '0').toString().replace(/,/g,'')) || 0,
+  }));
+}
+
+function filterWholesale() {
+  let data = whlData;
+  if (selCorp) data = data.filter(d=>d.corp===selCorp);
+  const sorted = [...data].sort((a,b)=>{
+    if (selSort==='price-desc') return b.priceAvg - a.priceAvg;
+    if (selSort==='price-asc')  return a.priceAvg - b.priceAvg;
+    return a.item.localeCompare(b.item,'ko');
+  });
+  renderWholesaleTable(sorted);
+  document.getElementById('result-info').innerHTML = `<strong>${data.length}건</strong> 조회됨`;
+  updatePanel();
+}
+
+function renderWholesaleTable(data) {
+  document.getElementById('no-data-area').innerHTML = '';
+  const thead = document.querySelector('thead tr');
+  thead.innerHTML = '<th>품목/품종</th><th>원산지</th><th>거래량</th><th>법인</th><th>평균경락가</th>';
+  if (!data.length) {
+    document.getElementById('table-body').innerHTML = '<tr class="empty-row"><td colspan="5">📭 경매 데이터가 없습니다<br><small style="color:#999">경매는 주로 새벽~오전에 진행됩니다</small></td></tr>';
+    return;
+  }
+  document.getElementById('table-body').innerHTML = data.map(d => `<tr>
+    <td><div class="td-item">${d.item}</div><div class="td-kind">${d.kind}</div></td>
+    <td style="font-size:11px;color:var(--sub)">${d.orig}</td>
+    <td style="font-size:11px">${d.qty > 0 ? d.qty.toLocaleString() + 'kg' : '-'}</td>
+    <td style="font-size:11px;color:var(--sub)">${d.corp}</td>
+    <td class="td-price">${d.priceAvg > 0 ? d.priceAvg.toLocaleString() + '원' : '-'}</td>
+  </tr>`).join('');
+}
+
 // ===== 조회 =====
 function getItemName(code) {
   for (const items of Object.values(ITEMS)) {
@@ -477,13 +618,31 @@ function getItemName(code) {
 }
 
 async function doSearch() {
-  if (!apiKey) { document.getElementById('api-banner').style.display='block'; return; }
-  const iname = getItemName(selItem);
-  if (selItem && NO_KAMIS.includes(iname)) { showNoKamis(iname); return; }
-
   document.getElementById('table-body').innerHTML = '<tr class="empty-row"><td colspan="5"><div class="spinner"></div>조회 중...</td></tr>';
   document.getElementById('no-data-area').innerHTML = '';
   document.getElementById('result-info').textContent = '조회 중...';
+
+  if (selCat === 'WHS') {
+    document.querySelector('thead tr').innerHTML = '<th>품목/품종</th><th>원산지</th><th>거래량</th><th>법인</th><th>평균경락가</th>';
+    updatePanel();
+    try {
+      whlData = await fetchWholesaleData();
+      selCorp = '';
+      filterWholesale();
+      document.getElementById('last-update').textContent = new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}) + ' 기준';
+    } catch(e) {
+      document.getElementById('table-body').innerHTML = `<tr class="empty-row"><td colspan="5">⚠️ ${e.message}</td></tr>`;
+      document.getElementById('result-info').textContent = '오류 발생';
+      updatePanel();
+    }
+    return;
+  }
+
+  // KAMIS 조회
+  document.querySelector('thead tr').innerHTML = '<th>날짜</th><th>품목</th><th>등급</th><th>규격</th><th>경락가</th>';
+  if (!apiKey) { document.getElementById('api-banner').style.display='block'; return; }
+  const iname = getItemName(selItem);
+  if (selItem && NO_KAMIS.includes(iname)) { showNoKamis(iname); return; }
 
   try {
     rawData = await fetchData();
