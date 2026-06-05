@@ -459,6 +459,19 @@ const ITEMS = {
   '700': [{c:'711',n:'밤'},{c:'712',n:'잣'},{c:'721',n:'표고버섯'},{c:'722',n:'송이버섯'}],
 };
 const NO_KAMIS = ['블루베리','복분자'];
+// 도매시장 고정 품목 목록 (데이터 없어도 항상 표시)
+const WHS_ITEMS = [
+  '사과','배','복숭아','포도','감귤','한라봉','수박','참외','딸기','블루베리','체리',
+  '바나나','키위','오렌지','레몬','망고','파인애플',
+  '배추','양배추','상추','시금치','깻잎','미나리','쑥갓',
+  '무','당근','양파','마늘','대파','쪽파','생강',
+  '오이','호박','토마토','방울토마토','파프리카','고추','풋고추',
+  '느타리버섯','팽이버섯','새송이버섯','표고버섯',
+  '감자','고구마','옥수수',
+  '한우','돼지고기','닭고기','계란',
+  '갈치','고등어','명태','오징어','새우','굴','김','미역',
+  '밤','잣','도라지','더덕',
+];
 const CORS_PROXIES = [
   url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
   url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
@@ -677,21 +690,29 @@ function openSheet(type) {
       options.push({val:c, label:c, cnt:cnt||null, active:selCorps.includes(c)});
     });
   } else if (type === 'cat') {
-    title = '분류 선택';
+    title = '품목 선택';
     if (isWhs) {
-      // WHS: whlData에서 품목 목록 직접 추출
-      const items = [...new Set(whlData.map(d=>d.item))].filter(Boolean).sort();
-      options = [{val:'', label:'전체', cnt:whlData.length, active:selItem===''}];
-      items.forEach(i => options.push({val:i, label:i, cnt:whlData.filter(d=>d.item===i).length, active:selItem===i}));
+      // WHS: 실제 데이터 있으면 우선, 없으면 고정 목록
+      const dynItems = [...new Set(whlData.map(d=>d.item))].filter(Boolean).sort();
+      const items = dynItems.length ? dynItems : WHS_ITEMS;
+      options = [{val:'', label:'전체', cnt:whlData.length||null, active:selItem===''}];
+      items.forEach(i => {
+        const cnt = whlData.filter(d=>d.item===i).length;
+        options.push({val:i, label:i, cnt:cnt||null, active:selItem===i});
+      });
     } else {
       options = CATS.map(c=>({val:c.code, label:c.name, cnt:null, active:selCat===c.code}));
     }
   } else if (type === 'item') {
     title = '품목 선택';
     if (isWhs) {
-      const items = [...new Set(whlData.map(d=>d.item))].filter(Boolean).sort();
-      options = [{val:'', label:'전체', cnt:whlData.length, active:selItem===''}];
-      items.forEach(i => options.push({val:i, label:i, cnt:whlData.filter(d=>d.item===i).length, active:selItem===i}));
+      const dynItems = [...new Set(whlData.map(d=>d.item))].filter(Boolean).sort();
+      const items = dynItems.length ? dynItems : WHS_ITEMS;
+      options = [{val:'', label:'전체', cnt:whlData.length||null, active:selItem===''}];
+      items.forEach(i => {
+        const cnt = whlData.filter(d=>d.item===i).length;
+        options.push({val:i, label:i, cnt:cnt||null, active:selItem===i});
+      });
     } else {
       const catItems = ITEMS[selCat] || [];
       options = [{val:'', label:'전체', cnt:rawData.length, active:selItem===''}];
