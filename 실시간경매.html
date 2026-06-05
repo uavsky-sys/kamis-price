@@ -354,7 +354,7 @@ tbody td { padding:7px 4px; text-align:center; vertical-align:middle; line-heigh
       <button class="sheet-close" onclick="closeSheet()">✕</button>
     </div>
     <div id="sheet-items"></div>
-    <button id="sheet-done-btn" onclick="closeSheet()" style="display:none;width:100%;padding:14px;background:var(--green);color:#fff;border:none;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;">✔ 완료</button>
+    <button id="sheet-done-btn" onclick="advanceSheet()" style="display:none;width:100%;padding:14px;background:var(--green);color:#fff;border:none;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;">다음 ›</button>
   </div>
 </div>
 
@@ -613,19 +613,21 @@ function updatePanel() {
   document.getElementById('fb-btn-market').className = 'filter-btn' + (isWhs ? ' fb-active' : ' fb-dim');
   document.getElementById('fb-btn-corp').className   = 'filter-btn' + (isWhs ? ' fb-active' : ' fb-dim');
 
-  // 분류/품목/품종: KAMIS 모드에서만 활성
+  // 분류/품목/품종: 항상 활성 (WHS 모드에서는 whlData 필터링)
   const catName  = CATS.find(c=>c.code===selCat)?.name || '전체';
-  const itemName = getItemName(selItem) || (selItem || '전체');
-  document.getElementById('fb-cat').textContent  = isWhs ? '—' : catName;
-  document.getElementById('fb-cat-cnt').textContent = (!isWhs && rawData.length) ? `(${rawData.length})` : '';
-  document.getElementById('fb-item').textContent = isWhs ? '—' : itemName;
-  document.getElementById('fb-item-cnt').textContent = (!isWhs && allData.length) ? `(${allData.length})` : '';
-  const kindBase = selItem ? allData : rawData;
-  document.getElementById('fb-kind').textContent = isWhs ? '—' : (selKind || '전체');
-  document.getElementById('fb-kind-cnt').textContent = (!isWhs && kindBase.length) ? `(${kindBase.length})` : '';
-  document.getElementById('fb-btn-cat').className  = 'filter-btn' + (isWhs ? ' fb-dim' : '');
-  document.getElementById('fb-btn-item').className = 'filter-btn' + (isWhs ? ' fb-dim' : '');
-  document.getElementById('fb-btn-kind').className = 'filter-btn' + (isWhs ? ' fb-dim' : '');
+  const itemName = isWhs ? (selItem || '전체') : (getItemName(selItem) || (selItem || '전체'));
+  const whsCnt   = isWhs ? whlData.length : 0;
+  document.getElementById('fb-cat').textContent  = isWhs ? (selItem ? selItem : '전체') : catName;
+  document.getElementById('fb-cat-cnt').textContent = isWhs ? (whlData.length ? `(${whlData.length})` : '') : (rawData.length ? `(${rawData.length})` : '');
+  document.getElementById('fb-item').textContent = itemName;
+  const filteredWhl = isWhs && selItem ? whlData.filter(d=>d.item===selItem) : whlData;
+  document.getElementById('fb-item-cnt').textContent = isWhs ? (filteredWhl.length ? `(${filteredWhl.length})` : '') : (allData.length ? `(${allData.length})` : '');
+  document.getElementById('fb-kind').textContent = selKind || '전체';
+  const kindBase2 = isWhs ? filteredWhl : (selItem ? allData : rawData);
+  document.getElementById('fb-kind-cnt').textContent = kindBase2.length ? `(${kindBase2.length})` : '';
+  document.getElementById('fb-btn-cat').className  = 'filter-btn';
+  document.getElementById('fb-btn-item').className = 'filter-btn';
+  document.getElementById('fb-btn-kind').className = 'filter-btn';
 }
 
 // ===== 보텀 시트 =====
@@ -635,7 +637,7 @@ function openSheet(type) {
   if (type === 'market' || type === 'corp') {
     if (!isWhs && type === 'corp') return; // 비활성
   }
-  if ((type === 'cat' || type === 'item' || type === 'kind') && isWhs) return; // 비활성
+  // WHS 모드에서도 품목/품종 허용 (whlData 필터링)
 
   curSheet = type;
   if (type === 'date') {
@@ -676,21 +678,41 @@ function openSheet(type) {
     });
   } else if (type === 'cat') {
     title = '분류 선택';
-    options = CATS.map(c=>({val:c.code, label:c.name, cnt:null, active:selCat===c.code}));
+    if (isWhs) {
+      // WHS: whlData에서 품목 목록 직접 추출
+      const items = [...new Set(whlData.map(d=>d.item))].filter(Boolean).sort();
+      options = [{val:'', label:'전체', cnt:whlData.length, active:selItem===''}];
+      items.forEach(i => options.push({val:i, label:i, cnt:whlData.filter(d=>d.item===i).length, active:selItem===i}));
+    } else {
+      options = CATS.map(c=>({val:c.code, label:c.name, cnt:null, active:selCat===c.code}));
+    }
   } else if (type === 'item') {
     title = '품목 선택';
-    const catItems = ITEMS[selCat] || [];
-    options = [{val:'', label:'전체', cnt:rawData.length, active:selItem===''}];
-    catItems.forEach(i => {
-      const cnt = rawData.filter(d=>d.item===i.n||d.item.includes(i.n)).length;
-      if (cnt > 0) options.push({val:i.c, label:i.n, cnt, active:selItem===i.c});
-    });
+    if (isWhs) {
+      const items = [...new Set(whlData.map(d=>d.item))].filter(Boolean).sort();
+      options = [{val:'', label:'전체', cnt:whlData.length, active:selItem===''}];
+      items.forEach(i => options.push({val:i, label:i, cnt:whlData.filter(d=>d.item===i).length, active:selItem===i}));
+    } else {
+      const catItems = ITEMS[selCat] || [];
+      options = [{val:'', label:'전체', cnt:rawData.length, active:selItem===''}];
+      catItems.forEach(i => {
+        const cnt = rawData.filter(d=>d.item===i.n||d.item.includes(i.n)).length;
+        if (cnt > 0) options.push({val:i.c, label:i.n, cnt, active:selItem===i.c});
+      });
+    }
   } else if (type === 'kind') {
     title = '품종 선택';
-    const base = selItem ? allData : rawData;
-    const kinds = [...new Set(base.map(d=>d.kind))].sort();
-    options = [{val:'', label:'전체', cnt:base.length, active:selKind===''}];
-    kinds.forEach(k=>options.push({val:k, label:k, cnt:base.filter(d=>d.kind===k).length, active:selKind===k}));
+    if (isWhs) {
+      const base = selItem ? whlData.filter(d=>d.item===selItem) : whlData;
+      const kinds = [...new Set(base.map(d=>d.kind))].filter(k=>k&&k!=='-').sort();
+      options = [{val:'', label:'전체', cnt:base.length, active:selKind===''}];
+      kinds.forEach(k=>options.push({val:k, label:k, cnt:base.filter(d=>d.kind===k).length, active:selKind===k}));
+    } else {
+      const base = selItem ? allData : rawData;
+      const kinds = [...new Set(base.map(d=>d.kind))].sort();
+      options = [{val:'', label:'전체', cnt:base.length, active:selKind===''}];
+      kinds.forEach(k=>options.push({val:k, label:k, cnt:base.filter(d=>d.kind===k).length, active:selKind===k}));
+    }
   }
 
   document.getElementById('sheet-title').textContent = title;
@@ -701,8 +723,9 @@ function openSheet(type) {
       ${o.cnt!==null?`<span class="cnt">${o.cnt}건</span>`:''}
     </div>`).join('');
   const doneBtn = document.getElementById('sheet-done-btn');
-  if (curSheet === 'corp') {
+  if (SHEET_ORDER.includes(curSheet)) {
     doneBtn.style.display = 'block';
+    doneBtn.textContent = curSheet === 'kind' ? '✔ 완료' : '다음 ›';
   } else {
     doneBtn.style.display = 'none';
   }
@@ -728,17 +751,35 @@ function selectSheetItem(val) {
     selCat = 'WHS'; selItem = ''; selKind = ''; selGrade = '';
     doSearch();
   } else if (curSheet === 'cat') {
-    if (selCat === val) return;
-    selCat = val; selItem = ''; selKind = ''; selGrade = ''; selCorps = [];
-    doSearch();
+    const isWhs = selCat === 'WHS';
+    if (isWhs) {
+      selItem = val; selKind = '';
+      filterWholesale(); updatePanel();
+    } else {
+      if (selCat === val) return;
+      selCat = val; selItem = ''; selKind = ''; selGrade = ''; selCorps = [];
+      doSearch();
+    }
   } else if (curSheet === 'item') {
-    selItem = val; selKind = ''; selGrade = '';
-    const name = getItemName(val) || val;
-    if (val && NO_KAMIS.includes(name)) { showNoKamis(name); updatePanel(); return; }
-    filterAndRender();
+    const isWhs = selCat === 'WHS';
+    if (isWhs) {
+      selItem = val; selKind = '';
+      filterWholesale(); updatePanel();
+    } else {
+      selItem = val; selKind = ''; selGrade = '';
+      const name = getItemName(val) || val;
+      if (val && NO_KAMIS.includes(name)) { showNoKamis(name); updatePanel(); return; }
+      filterAndRender();
+    }
   } else if (curSheet === 'kind') {
-    selKind = val; selGrade = '';
-    filterAndRender();
+    const isWhs = selCat === 'WHS';
+    if (isWhs) {
+      selKind = val;
+      filterWholesale(); updatePanel();
+    } else {
+      selKind = val; selGrade = '';
+      filterAndRender();
+    }
   }
 }
 
@@ -782,6 +823,13 @@ async function fetchWholesaleData() {
   }));
 }
 
+const SHEET_ORDER = ['corp','cat','item','kind'];
+function advanceSheet() {
+  const next = SHEET_ORDER[SHEET_ORDER.indexOf(curSheet) + 1];
+  closeSheet();
+  if (next) setTimeout(() => openSheet(next), 80);
+}
+
 function removeCorpChip(name) {
   selCorps = selCorps.filter(c => c !== name);
   filterWholesale();
@@ -791,6 +839,8 @@ function removeCorpChip(name) {
 function filterWholesale() {
   let data = whlData;
   if (selCorps.length) data = data.filter(d=>selCorps.includes(d.corp));
+  if (selItem) data = data.filter(d=>d.item===selItem);
+  if (selKind) data = data.filter(d=>d.kind===selKind);
   const sorted = [...data].sort((a,b)=>{
     if (selSort==='price-desc') return b.priceAvg - a.priceAvg;
     if (selSort==='price-asc')  return a.priceAvg - b.priceAvg;
