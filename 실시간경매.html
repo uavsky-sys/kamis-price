@@ -855,18 +855,16 @@ function parseMafraJson(json) {
 }
 
 async function fetchWholesaleData() {
-  if (!mrafaKey) {
-    document.getElementById('mafra-banner').style.display = 'block';
-    throw new Error('농림부 API 키가 필요합니다.');
-  }
   const dateStr = selDate.replace(/-/g,'');
-  const apiPath = `/openapi/${mrafaKey}/json/Grid_20240625000000000654_1/1/500?SALEDATE=${dateStr}&WHSALCD=${selMarket}`;
   const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 
   // 1순위: 로컬 server.py 프록시
-  if (isLocal) {
-    const r = await fetch(`/proxy/mafra${apiPath}`, {signal: AbortSignal.timeout(12000)});
-    if (r.ok) return parseMafraJson(await r.json());
+  if (isLocal && mrafaKey) {
+    const apiPath = `/openapi/${mrafaKey}/json/Grid_20240625000000000654_1/1/500?SALEDATE=${dateStr}&WHSALCD=${selMarket}`;
+    try {
+      const r = await fetch(`/proxy/mafra${apiPath}`, {signal: AbortSignal.timeout(12000)});
+      if (r.ok) return parseMafraJson(await r.json());
+    } catch(e) { /* 다음 시도 */ }
   }
 
   // 2순위: GitHub Actions 캐시 (30분마다 갱신)
@@ -879,13 +877,16 @@ async function fetchWholesaleData() {
     }
   } catch(e) { /* 캐시 없으면 다음 시도 */ }
 
-  // 3순위: 직접 API (로컬에서만 성공 가능)
-  try {
-    const r = await fetch(MAFRA_BASE + apiPath, {signal: AbortSignal.timeout(12000)});
-    if (r.ok) return parseMafraJson(await r.json());
-  } catch(e) { /* ignore */ }
+  // 3순위: 직접 API + 로컬 키 (로컬 환경)
+  if (mrafaKey) {
+    try {
+      const apiPath = `/openapi/${mrafaKey}/json/Grid_20240625000000000654_1/1/500?SALEDATE=${dateStr}&WHSALCD=${selMarket}`;
+      const r = await fetch(MAFRA_BASE + apiPath, {signal: AbortSignal.timeout(12000)});
+      if (r.ok) return parseMafraJson(await r.json());
+    } catch(e) { /* ignore */ }
+  }
 
-  throw new Error('도매시장 데이터를 가져올 수 없습니다.\n캐시 데이터는 매 30분 갱신됩니다.');
+  throw new Error('도매시장 데이터를 가져올 수 없습니다.\n캐시 데이터는 매 30분마다 갱신됩니다.');
 }
 
 const SHEET_ORDER = ['corp','cat','item','kind'];
