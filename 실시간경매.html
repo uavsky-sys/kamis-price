@@ -835,11 +835,24 @@ function selectDate(val) {
 }
 
 // ===== 도매시장 조회 =====
-const MAFRA_BASE = 'http://211.237.50.150:7080';
-const MAFRA_PROXIES = [
-  base => `https://corsproxy.io/?${encodeURIComponent(base)}`,
-  base => `https://api.allorigins.win/raw?url=${encodeURIComponent(base)}`,
-];
+const MAFRA_BASE  = 'http://211.237.50.150:7080';
+const GITHUB_RAW  = 'https://raw.githubusercontent.com/uavsky-sys/kamis-price/master/data';
+
+function parseMafraJson(json) {
+  const svc = json['Grid_20240625000000000654_1'];
+  if (!svc) throw new Error('응답 형식 오류');
+  if (svc.result?.code && svc.result.code !== 'INFO-000') throw new Error(svc.result.message || 'API 오류');
+  return (svc.row || []).map(r => ({
+    item:     r.PRDLST_NM || r.ITEM_NM  || '-',
+    kind:     r.SANPUM_NM || r.PRDNM    || '-',
+    orig:     r.ORIG_NM   || r.ORIGIN   || '-',
+    qty:      parseFloat(r.TOTQTY || '0') || 0,
+    corp:     r.CPSL_NM   || r.WHLSALCO_NM || '-',
+    priceAvg: parseInt((r.AUCTN_PRC_AVG||'0').toString().replace(/,/g,'')) || 0,
+    priceMax: parseInt((r.AUCTN_PRC_MAX||'0').toString().replace(/,/g,'')) || 0,
+    priceMin: parseInt((r.AUCTN_PRC_MIN||'0').toString().replace(/,/g,'')) || 0,
+  }));
+}
 
 async function fetchWholesaleData() {
   if (!mrafaKey) {
@@ -850,33 +863,29 @@ async function fetchWholesaleData() {
   const apiPath = `/openapi/${mrafaKey}/json/Grid_20240625000000000654_1/1/500?SALEDATE=${dateStr}&WHSALCD=${selMarket}`;
   const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 
-  // 로컬: server.py 프록시 사용, 웹: CORS 프록시 순차 시도
-  const urls = isLocal
-    ? [`/proxy/mafra${apiPath}`]
-    : MAFRA_PROXIES.map(fn => fn(MAFRA_BASE + apiPath));
-
-  let lastErr;
-  for (const url of urls) {
-    try {
-      const r = await fetch(url, {signal: AbortSignal.timeout(12000)});
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      const json = await r.json();
-      if (json.result?.code && json.result.code !== 'INFO-000') throw new Error(json.result.message || 'API 오류');
-      const svc = json['Grid_20240625000000000654_1'];
-      if (!svc) throw new Error('응답 형식 오류');
-      return (svc.row || []).map(r => ({
-        item:     r.PRDLST_NM || r.ITEM_NM  || '-',
-        kind:     r.SANPUM_NM || r.PRDNM    || '-',
-        orig:     r.ORIG_NM   || r.ORIGIN   || '-',
-        qty:      parseFloat(r.TOTQTY || '0') || 0,
-        corp:     r.CPSL_NM   || r.WHLSALCO_NM || '-',
-        priceAvg: parseInt((r.AUCTN_PRC_AVG||'0').toString().replace(/,/g,'')) || 0,
-        priceMax: parseInt((r.AUCTN_PRC_MAX||'0').toString().replace(/,/g,'')) || 0,
-        priceMin: parseInt((r.AUCTN_PRC_MIN||'0').toString().replace(/,/g,'')) || 0,
-      }));
-    } catch(e) { lastErr = e; }
+  // 1순위: 로컬 server.py 프록시
+  if (isLocal) {
+    const r = await fetch(`/proxy/mafra${apiPath}`, {signal: AbortSignal.timeout(12000)});
+    if (r.ok) return parseMafraJson(await r.json());
   }
-  throw lastErr || new Error('도매시장 데이터 조회 실패');
+
+  // 2순위: GitHub Actions 캐시 (30분마다 갱신)
+  try {
+    const cacheUrl = `${GITHUB_RAW}/mafra-${selMarket}-${dateStr}.json?t=${Math.floor(Date.now()/300000)}`;
+    const r = await fetch(cacheUrl, {signal: AbortSignal.timeout(8000)});
+    if (r.ok) {
+      const json = await r.json();
+      if (!json.error) return parseMafraJson(json);
+    }
+  } catch(e) { /* 캐시 없으면 다음 시도 */ }
+
+  // 3순위: 직접 API (로컬에서만 성공 가능)
+  try {
+    const r = await fetch(MAFRA_BASE + apiPath, {signal: AbortSignal.timeout(12000)});
+    if (r.ok) return parseMafraJson(await r.json());
+  } catch(e) { /* ignore */ }
+
+  throw new Error('도매시장 데이터를 가져올 수 없습니다.\n캐시 데이터는 매 30분 갱신됩니다.');
 }
 
 const SHEET_ORDER = ['corp','cat','item','kind'];

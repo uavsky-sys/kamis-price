@@ -1,0 +1,35 @@
+name: mafra 도매시장 데이터 수집
+
+on:
+  schedule:
+    - cron: '0,30 * * * *'
+  workflow_dispatch:
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 오늘 날짜 설정
+        id: date
+        run: echo "today=$(TZ=Asia/Seoul date +%Y%m%d)" >> $GITHUB_OUTPUT
+
+      - name: 도매시장 데이터 수집
+        env:
+          MAFRA_KEY: ${{ secrets.MAFRA_API_KEY }}
+          DATE: ${{ steps.date.outputs.today }}
+        run: |
+          mkdir -p data
+          for WHSALCD in 110 111 112 120 130 131 132 133 140 150; do
+            URL="http://211.237.50.150:7080/openapi/${MAFRA_KEY}/json/Grid_20240625000000000654_1/1/500?SALEDATE=${DATE}&WHSALCD=${WHSALCD}"
+            curl -s --max-time 15 "$URL" -o "data/mafra-${WHSALCD}-${DATE}.json" || echo '{"error":"fetch_failed"}' > "data/mafra-${WHSALCD}-${DATE}.json"
+          done
+
+      - name: 수집 결과 커밋
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/
+          git diff --staged --quiet || git commit -m "chore: mafra 데이터 갱신 $(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M')"
+          git push
