@@ -275,7 +275,7 @@ tbody td { padding:7px 4px; text-align:center; vertical-align:middle; line-heigh
     <input type="text" id="mafra-key-input" placeholder="data.mafra.go.kr API 키..." />
     <button onclick="saveMrafaKey()" style="background:#2e7d32">저장</button>
   </div>
-  <div style="color:#555;font-size:11px">로컬 서버(localhost)에서만 동작합니다.</div>
+  <div style="color:#555;font-size:11px">data.mafra.go.kr에서 발급받은 API 키를 입력하세요.</div>
 </div>
 
 <!-- 상단 필터 패널: 일자 | 도매시장 | 도매법인 | 분류 | 품목 | 품종 | 검색 -->
@@ -835,32 +835,48 @@ function selectDate(val) {
 }
 
 // ===== 도매시장 조회 =====
+const MAFRA_BASE = 'http://211.237.50.150:7080';
+const MAFRA_PROXIES = [
+  base => `https://corsproxy.io/?${encodeURIComponent(base)}`,
+  base => `https://api.allorigins.win/raw?url=${encodeURIComponent(base)}`,
+];
+
 async function fetchWholesaleData() {
-  if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-    throw new Error('도매시장 기능은 로컬 서버(localhost)에서만 동작합니다. server.py를 실행해주세요.');
-  }
   if (!mrafaKey) {
     document.getElementById('mafra-banner').style.display = 'block';
     throw new Error('농림부 API 키가 필요합니다.');
   }
   const dateStr = selDate.replace(/-/g,'');
-  const url = `/proxy/mafra/openapi/${mrafaKey}/json/Grid_20240625000000000654_1/1/500?SALEDATE=${dateStr}&WHSALCD=${selMarket}`;
-  const r = await fetch(url, {signal: AbortSignal.timeout(10000)});
-  if (!r.ok) throw new Error('API 오류 (HTTP ' + r.status + ')');
-  const json = await r.json();
-  if (json.result?.code && json.result.code !== 'INFO-000') throw new Error(json.result.message || 'API 오류');
-  const svc = json['Grid_20240625000000000654_1'];
-  if (!svc) throw new Error('응답 형식 오류');
-  return (svc.row || []).map(r => ({
-    item:     r.PRDLST_NM || r.ITEM_NM  || '-',
-    kind:     r.SANPUM_NM || r.PRDNM    || '-',
-    orig:     r.ORIG_NM   || r.ORIGIN   || '-',
-    qty:      parseFloat(r.TOTQTY || '0') || 0,
-    corp:     r.CPSL_NM   || r.WHLSALCO_NM || '-',
-    priceAvg: parseInt((r.AUCTN_PRC_AVG||'0').toString().replace(/,/g,'')) || 0,
-    priceMax: parseInt((r.AUCTN_PRC_MAX||'0').toString().replace(/,/g,'')) || 0,
-    priceMin: parseInt((r.AUCTN_PRC_MIN||'0').toString().replace(/,/g,'')) || 0,
-  }));
+  const apiPath = `/openapi/${mrafaKey}/json/Grid_20240625000000000654_1/1/500?SALEDATE=${dateStr}&WHSALCD=${selMarket}`;
+  const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+
+  // 로컬: server.py 프록시 사용, 웹: CORS 프록시 순차 시도
+  const urls = isLocal
+    ? [`/proxy/mafra${apiPath}`]
+    : MAFRA_PROXIES.map(fn => fn(MAFRA_BASE + apiPath));
+
+  let lastErr;
+  for (const url of urls) {
+    try {
+      const r = await fetch(url, {signal: AbortSignal.timeout(12000)});
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const json = await r.json();
+      if (json.result?.code && json.result.code !== 'INFO-000') throw new Error(json.result.message || 'API 오류');
+      const svc = json['Grid_20240625000000000654_1'];
+      if (!svc) throw new Error('응답 형식 오류');
+      return (svc.row || []).map(r => ({
+        item:     r.PRDLST_NM || r.ITEM_NM  || '-',
+        kind:     r.SANPUM_NM || r.PRDNM    || '-',
+        orig:     r.ORIG_NM   || r.ORIGIN   || '-',
+        qty:      parseFloat(r.TOTQTY || '0') || 0,
+        corp:     r.CPSL_NM   || r.WHLSALCO_NM || '-',
+        priceAvg: parseInt((r.AUCTN_PRC_AVG||'0').toString().replace(/,/g,'')) || 0,
+        priceMax: parseInt((r.AUCTN_PRC_MAX||'0').toString().replace(/,/g,'')) || 0,
+        priceMin: parseInt((r.AUCTN_PRC_MIN||'0').toString().replace(/,/g,'')) || 0,
+      }));
+    } catch(e) { lastErr = e; }
+  }
+  throw lastErr || new Error('도매시장 데이터 조회 실패');
 }
 
 const SHEET_ORDER = ['corp','cat','item','kind'];
