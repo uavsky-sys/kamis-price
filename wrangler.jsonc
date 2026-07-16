@@ -1,0 +1,9 @@
+{
+  // auction-price 워커 — GitHub 푸시 시 자동 배포용 설정
+  // public/ 안의 정적 파일만 사이트로 올라간다 (data/ 수집 JSON은 제외)
+  "name": "auction-price",
+  "compatibility_date": "2026-07-17",
+  "assets": {
+    "directory": "./public"
+  }
+}
