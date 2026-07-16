@@ -608,6 +608,35 @@ tbody td { padding: 6px 3px; text-align: center; vertical-align: middle; line-he
   .td-kind { font-size: 11px !important; }
   .td-price { font-size: 15px !important; font-weight: 800 !important; color: #C62828 !important; }
 }
+
+/* ===========================
+   모바일 전면 개편 — 표가 곧 홈 화면
+   (상단 바들 숨김, 필터는 하단 칩, 검색 크게)
+=========================== */
+.m-topbar { display: none; }
+.td-dt { display: inline-flex; flex-direction: column; line-height: 1.45; }
+@media (max-width: 760px) {
+  header, .date-bar, .fav-bar, .sort-bar, .sel-tree, .results-divider,
+  .today-cards, .total-bar, .cat-tab-bar { display: none !important; }
+  .filter-panel, .filter-row, .filter-btn { visibility: hidden; height: 0 !important;
+    padding: 0 !important; margin: 0 !important; border: 0 !important; overflow: visible; }
+  .filter-dropdown.open { visibility: visible; position: fixed; left: 8px; right: 8px;
+    top: auto !important; bottom: 122px; max-height: 52vh; overflow-y: auto; z-index: 70;
+    border-radius: 12px; box-shadow: 0 -6px 24px rgba(0,0,0,0.28); }
+  .m-topbar { position: sticky; top: 0; z-index: 40; display: flex; align-items: center;
+    justify-content: space-between; background: #1F5138; color: #fff;
+    padding: 9px 12px; font-size: 13px; font-weight: 700; }
+  .m-topbar button { background: rgba(255,255,255,0.15); color: #fff; border: 0;
+    border-radius: 999px; padding: 5px 12px; font-size: 12px; font-family: inherit; cursor: pointer; }
+  .status-bar { font-size: 11px; padding: 7px 6px; }
+  .td-dt span { font-size: 11px; }
+  .m-bottom-bar { grid-template-columns: repeat(3, 1fr) 86px; gap: 6px; padding: 9px 8px calc(9px + env(safe-area-inset-bottom)); }
+  .mb-chip { font-size: 13px; font-weight: 700; padding: 11px 3px; border-radius: 7px; }
+  .mb-chip small { display: none; }
+  .mb-chip .cnt { color: #A7D7BD; font-weight: 400; font-size: 11px; }
+  .mb-search { font-size: 17px; border-radius: 8px; }
+  body { padding-bottom: 126px; }
+}
 </style>
 </head>
 <body>
@@ -756,6 +785,9 @@ tbody td { padding: 6px 3px; text-align: center; vertical-align: middle; line-he
     <div class="tc-grid" id="tc-grid"></div>
     <div class="tc-hint">카드를 누르면 상세 경매 내역을 보여드려요</div>
   </div>
+
+  <!-- 모바일 전용 미니 헤더 -->
+  <div class="m-topbar"><span>🌾 실시간 경매가격</span><button onclick="doSearch()">🔄 새로고침</button></div>
 
   <div class="results-divider">📊 검색 결과</div>
 
@@ -920,19 +952,29 @@ document.addEventListener('DOMContentLoaded', initTodayCards);
 
 // ===== 모바일 하단 필터바 =====
 function mbOpen(type) {
-  window.scrollTo({ top: 0, behavior: 'smooth' });
   const btn = document.getElementById('fb-btn-' + type);
-  if (btn) setTimeout(() => toggleFilter(type, btn), 350);
+  if (!btn) return;
+  if (window.innerWidth <= 760) { toggleFilter(type, btn); return; }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  setTimeout(() => toggleFilter(type, btn), 350);
 }
 
 function updateMobileBar() {
-  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
-  set('mb-date', selDate ? selDate.slice(5).replace('-', '/') : '오늘');
-  set('mb-market', selMarket === 'all' ? '전국' : ((MARKETS.find(m => m.code === selMarket) || {}).name || selMarket));
-  set('mb-corp', selCorp || '전체');
-  set('mb-cat', selCat || '전체');
-  set('mb-item', selItem || '전체');
-  set('mb-kind', selKind || '전체');
+  const cnt = (field, val) => {
+    if (!rawData.length) return '';
+    const n = val ? rawData.filter(d => d[field] === val).length : rawData.length;
+    return ` <span class="cnt">(${n})</span>`;
+  };
+  const set = (id, label, count) => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = escHtml(label) + count;
+  };
+  set('mb-date', selDate ? selDate.replace(/-/g, '') : '오늘', '');
+  set('mb-market', selMarket === 'all' ? '전국' : ((MARKETS.find(m => m.code === selMarket) || {}).name || selMarket), cnt('market', ''));
+  set('mb-corp', selCorp || '법인 전체', selCorp ? cnt('corp', selCorp) : '');
+  set('mb-cat', selCat || '분류 전체', selCat ? cnt('cat', selCat) : '');
+  set('mb-item', selItem || '품목 전체', selItem ? cnt('item', selItem) : '');
+  set('mb-kind', selKind || '품종 전체', selKind ? cnt('kind', selKind) : '');
 }
 
 const FIXED_CATS = [
@@ -1318,6 +1360,9 @@ function parseResponse(json) {
     const rawTime = r.scsbd_dt || r.mdfcn_dt || '';
     const timeMatch = rawTime.match(/(\d{2}:\d{2})/);
     const time = timeMatch ? timeMatch[1] : '-';
+    const dtm = rawTime.match(/(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}:\d{2})/);
+    const dtDate = dtm ? dtm[1] : '';
+    const dtTime = dtm ? dtm[2] : time;
     // 규격: 단위수량+단위명+포장명 (예: "15kg 그물망")
     const uq = parseFloat(r.unit_qty || 0);
     const uqStr = uq > 0 ? (Number.isInteger(uq) ? String(uq) : uq.toFixed(1).replace(/\.0$/, '')) : '';
@@ -1332,6 +1377,8 @@ function parseResponse(json) {
       price:  parseInt((r.scsbd_prc || r.totprc || '0').toString().replace(/,/g,'')) || 0,
       cat:    r.gds_lclsf_nm || '-',
       time,
+      dtDate,
+      dtTime,
       grade,
     };
   }).filter(d => d.price > 0);
@@ -1509,6 +1556,7 @@ function renderCatTabs() {
 
 // ===== 총거래 요약 바 =====
 function renderTotalBar(data) {
+  updateMobileBar();
   const bar = document.getElementById('total-bar');
   if (!bar) return;
   if (!data || !data.length) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
@@ -1547,7 +1595,7 @@ function sortData(data) {
 function makeCells(d) {
   const loc = selMarket === 'all' ? d.market : d.orig;
   const qty = d.qty > 0 ? d.qty.toLocaleString() : '-';
-  return `<td style="font-size:10px;color:var(--sub)">${escHtml(d.time)}</td>
+  return `<td style="font-size:10px;color:var(--sub)"><span class="td-dt"><span>${escHtml(d.dtDate || '')}</span><span>${escHtml(d.dtTime || d.time)}</span></span></td>
     <td><span class="td-namecell"><span class="td-item">${escHtml(d.item)}</span><span class="td-kind">${escHtml(d.kind)}</span></span></td>
     <td style="font-size:10px;color:var(--sub)">${escHtml(loc)}</td>
     <td style="font-size:10px">${qty}</td>
