@@ -7,3 +7,5 @@
     "directory": "./public"
   }
 }
+
+// 자동 배포 연결 완료: master 푸시 → 빌드 → 배포
