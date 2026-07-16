@@ -891,7 +891,7 @@ function tcCardHtml(item, fixed) {
 }
 
 function tcGo(item) {
-  selItem = item; selCat = ''; selKind = '';
+  selItem = item; selCat = ''; selKind = ''; autoCat = false;
   setQuickDate(0); // 날짜 갱신 + 검색 실행
   const t = document.querySelector('.results-divider');
   if (t) t.scrollIntoView({ behavior: 'smooth' });
@@ -976,7 +976,7 @@ function updateMobileBar() {
   set('mb-corp', selCorp || '법인 전체', cnt('corp', 'corp', selCorp));
   set('mb-cat', selCat || '분류 전체', cnt('cat', 'cat', selCat));
   set('mb-item', selItem || '품목 전체', cnt('item', 'item', selItem));
-  set('mb-kind', selKind || '품종 전체', cnt('kind', 'kind', selKind));
+  set('mb-kind', selKind || '품종 전체', cnt('kind', 'kindN', selKind));
 }
 
 const FIXED_CATS = [
@@ -1036,6 +1036,7 @@ let selTreeOpen = false;
 let autoBackDays = 0;   // 당일 데이터 없을 때 자동으로 며칠 거슬러갔는지
 let lastTotal = 0;      // 마지막 조회의 서버측 전체 건수 (1,000건 잘림 안내용)
 let fetchedCat = '', fetchedItem = '';  // 마지막 조회에 사용된 서버측 필터
+let autoCat = false;    // 분류가 품목에서 자동 유추된 것인지 (품목 변경 시 함께 초기화)
 
 // ===== 즐겨찾기 =====
 const FAV_KEY = 'auction_fav_v1';
@@ -1147,6 +1148,7 @@ function favSearch() {
   selCat    = saved.cat    || '';
   selItem   = saved.item   || '';
   selKind   = saved.kind   || '';
+  autoCat   = false;
   document.getElementById('date-input-hidden').value = selDate;
   updatePanel();
   renderSelectionTree();
@@ -1357,6 +1359,23 @@ async function doSearch(autoBack = 0) {
   updatePanel();
 }
 
+// ===== 품종명 정규화 =====
+// 법인이 자유 입력한 품종명에서 처리·포장 수식어만 걷어내 같은 품종끼리 묶는다.
+// 예: '꼭지절단수박' / '수박(꼭지절단)' / '수박(일반)(꼭지절단)' → 모두 '수박'
+//     '꿀수박(꼭지절단)' → '꿀수박' (품종 구분은 유지)
+const KIND_NOISE = ['꼭지절단', '꼭지 절단', '꼭지컷', '(일반)', '(정품)', '(박스)', '(BOX)', '(box)'];
+function normKind(kind, item) {
+  if (!kind || kind === '-') return kind;
+  let k = kind;
+  KIND_NOISE.forEach(w => { k = k.split(w).join(''); });
+  k = k.replace(/\(\s*\)/g, '')            // 수식어 제거 후 남은 빈 괄호
+       .replace(/\s+/g, ' ')
+       .replace(/^[\s()]+|[\s()]+$/g, '')
+       .trim();
+  if (!k) k = (item && item !== '-') ? item : kind;  // 전부 지워졌으면 품목명으로
+  return k;
+}
+
 // ===== 파싱 =====
 function parseResponse(json) {
   const body = json?.response?.body || json?.응답?.본문 || {};
@@ -1374,9 +1393,12 @@ function parseResponse(json) {
     const uq = parseFloat(r.unit_qty || 0);
     const uqStr = uq > 0 ? (Number.isInteger(uq) ? String(uq) : uq.toFixed(1).replace(/\.0$/, '')) : '';
     const grade = (uqStr ? uqStr + (r.unit_nm || '') + ' ' : '') + (r.pkg_nm || r.grd_nm || '-');
+    const item = r.corp_gds_item_nm || r.gds_mclsf_nm || '-';
+    const kind = r.corp_gds_vrty_nm || r.gds_sclsf_nm || '-';
     return {
-      item:   r.corp_gds_item_nm || r.gds_mclsf_nm || '-',
-      kind:   r.corp_gds_vrty_nm || r.gds_sclsf_nm || '-',
+      item,
+      kind,                          // 원본 품종명 (표에 표시)
+      kindN:  normKind(kind, item),  // 정규화 품종명 (필터·건수 기준)
       orig:   r.plor_nm || '-',
       corp:   r.corp_nm || '-',
       market: r.whsl_mrkt_nm || '-',
@@ -1407,11 +1429,16 @@ function filterBase(level) {
 
 // ===== 필터링 & 렌더링 =====
 function filterAndRender() {
+  // 품목만 선택된 경우 그 품목의 분류를 자동 표시 (데이터상 분류가 하나일 때만)
+  if (selItem && !selCat && rawData.length) {
+    const cats = [...new Set(rawData.filter(d => d.item === selItem).map(d => d.cat))].filter(c => c && c !== '-');
+    if (cats.length === 1) { selCat = cats[0]; autoCat = true; }
+  }
   let data = rawData;
   if (selCorp) data = data.filter(d => d.corp === selCorp);
   if (selCat)  data = data.filter(d => d.cat  === selCat);
   if (selItem) data = data.filter(d => d.item === selItem);
-  if (selKind) data = data.filter(d => d.kind === selKind);
+  if (selKind) data = data.filter(d => d.kindN === selKind);
   allData = data;
   renderTable(sortData(allData));
   renderSelectionTree();
@@ -1457,7 +1484,7 @@ function renderSelectionTree() {
 
   // 품종별 카운트 (선택된 법인·분류·품목 기준)
   const kindCounts = {};
-  filterBase('kind').forEach(d => { if(d.kind&&d.kind!=='-') kindCounts[d.kind]=(kindCounts[d.kind]||0)+1; });
+  filterBase('kind').forEach(d => { if(d.kindN&&d.kindN!=='-') kindCounts[d.kindN]=(kindCounts[d.kindN]||0)+1; });
   const kindList = Object.keys(kindCounts).sort();
 
   // 칩 HTML 생성: 선택=초록, 미선택=아웃라인, 데이터없음=숨김
@@ -1522,7 +1549,7 @@ function renderSelectionTree() {
       const type = btn.closest('[data-clear]').dataset.clear;
       if (type === 'market') {
         // 전국 전체 조회는 API 미지원 — 재조회 없이 안내만
-        selMarket='all'; selCorp=''; selCat=''; selItem=''; selKind='';
+        selMarket='all'; selCorp=''; selCat=''; selItem=''; selKind=''; autoCat=false;
         rawData=[]; allData=[]; lastTotal=0;
         filterAndRender();
         return;
@@ -1712,11 +1739,11 @@ function toggleFilter(type, btn) {
     });
   } else if (type === 'kind') {
     const base = filterBase('kind');
-    const kinds = [...new Set(base.map(d=>d.kind))].filter(k=>k&&k!=='-').sort();
+    const kinds = [...new Set(base.map(d=>d.kindN))].filter(k=>k&&k!=='-').sort();
     html = `<div class="fd-item${!selKind?' active':''}" data-type="kind" data-val="">
       <span>전체</span><span class="cnt">${base.length}건</span></div>`;
     kinds.forEach(k => {
-      const cnt = base.filter(d=>d.kind===k).length;
+      const cnt = base.filter(d=>d.kindN===k).length;
       html += `<div class="fd-item${selKind===k?' active':''}" data-type="kind" data-val="${escAttr(k)}">
         <span>${escHtml(k)}</span><span class="cnt">${cnt}건</span>
       </div>`;
@@ -1743,22 +1770,24 @@ function pickFilter(type, val) {
 // 법인·품종은 이미 받아온 데이터를 클라이언트에서 즉시 걸러 보여준다.
 function applyFilter(type, val) {
   if (type === 'market') {
-    selMarket = val; selCorp=''; selCat=''; selItem=''; selKind='';
+    selMarket = val; selCorp=''; selCat=''; selItem=''; selKind=''; autoCat=false;
     doSearch(); return;
   }
   if (type === 'corp') {
-    selCorp = val; selCat=''; selItem=''; selKind='';
+    selCorp = val; selCat=''; selItem=''; selKind=''; autoCat=false;
     if (fetchedCat || fetchedItem) doSearch(); else filterAndRender();
     return;
   }
   if (type === 'cat') {
-    selCat = val; selItem=''; selKind='';
+    selCat = val; selItem=''; selKind=''; autoCat=false;
     if (selCat !== fetchedCat || fetchedItem) doSearch(); else filterAndRender();
     return;
   }
   if (type === 'item') {
+    // 자동 유추된 분류는 품목이 바뀌면 함께 초기화 (새 품목의 분류로 다시 유추)
+    if (autoCat) { selCat = ''; autoCat = false; }
     selItem = val; selKind='';
-    if (selItem !== fetchedItem) doSearch(); else filterAndRender();
+    if (selItem !== fetchedItem || selCat !== fetchedCat) doSearch(); else filterAndRender();
     return;
   }
   if (type === 'kind') { selKind = val; filterAndRender(); }
