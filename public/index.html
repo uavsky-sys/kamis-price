@@ -960,9 +960,10 @@ function mbOpen(type) {
 }
 
 function updateMobileBar() {
-  const cnt = (field, val) => {
-    if (!rawData.length) return '';
-    const n = val ? rawData.filter(d => d[field] === val).length : rawData.length;
+  // 상위 선택이 반영된 filterBase 기준 — 드롭다운·트리 건수와 항상 같다
+  const cnt = (level, field, val) => {
+    if (!rawData.length || !val) return '';
+    const n = filterBase(level).filter(d => d[field] === val).length;
     return ` <span class="cnt">(${n})</span>`;
   };
   const set = (id, label, count) => {
@@ -970,11 +971,12 @@ function updateMobileBar() {
     if (el) el.innerHTML = escHtml(label) + count;
   };
   set('mb-date', selDate ? selDate.replace(/-/g, '') : '오늘', '');
-  set('mb-market', selMarket === 'all' ? '전국' : ((MARKETS.find(m => m.code === selMarket) || {}).name || selMarket), cnt('market', ''));
-  set('mb-corp', selCorp || '법인 전체', selCorp ? cnt('corp', selCorp) : '');
-  set('mb-cat', selCat || '분류 전체', selCat ? cnt('cat', selCat) : '');
-  set('mb-item', selItem || '품목 전체', selItem ? cnt('item', selItem) : '');
-  set('mb-kind', selKind || '품종 전체', selKind ? cnt('kind', selKind) : '');
+  set('mb-market', selMarket === 'all' ? '전국' : ((MARKETS.find(m => m.code === selMarket) || {}).name || selMarket),
+    rawData.length ? ` <span class="cnt">(${rawData.length})</span>` : '');
+  set('mb-corp', selCorp || '법인 전체', cnt('corp', 'corp', selCorp));
+  set('mb-cat', selCat || '분류 전체', cnt('cat', 'cat', selCat));
+  set('mb-item', selItem || '품목 전체', cnt('item', 'item', selItem));
+  set('mb-kind', selKind || '품종 전체', cnt('kind', 'kind', selKind));
 }
 
 const FIXED_CATS = [
@@ -1032,6 +1034,8 @@ let selDate='', selMarket='110001', selCorp='', selCat='', selItem='블루베리
 let rawData=[], allData=[];
 let selTreeOpen = false;
 let autoBackDays = 0;   // 당일 데이터 없을 때 자동으로 며칠 거슬러갔는지
+let lastTotal = 0;      // 마지막 조회의 서버측 전체 건수 (1,000건 잘림 안내용)
+let fetchedCat = '', fetchedItem = '';  // 마지막 조회에 사용된 서버측 필터
 
 // ===== 즐겨찾기 =====
 const FAV_KEY = 'auction_fav_v1';
@@ -1265,8 +1269,8 @@ function updatePanel() {
   document.getElementById('fb-cat').textContent    = selCat   || '전체';
   document.getElementById('fb-item').textContent   = selItem  || '전체';
   document.getElementById('fb-kind').textContent   = selKind  || '전체';
-  const filtered = selItem ? allData.filter(d=>d.item===selItem) : allData;
-  document.getElementById('fb-item-cnt').textContent = allData.length ? `(${filtered.length})` : '';
+  const itemCnt = filterBase('kind').length;
+  document.getElementById('fb-item-cnt').textContent = rawData.length ? `(${itemCnt})` : '';
   updateMobileBar();
 }
 
@@ -1289,10 +1293,12 @@ async function doSearch(autoBack = 0) {
   if (_tb) { _tb.style.display = 'none'; _tb.innerHTML = ''; }
   renderSelectionTree();
   const dateStr = selDate.replace(/-/g, '');
-  // 품목이 선택돼 있으면 프록시에 품목을 넘겨 '서버에서' 미리 걸러온다.
-  // (가락처럼 하루 수만 건인 시장에서도 해당 품목이 누락되지 않게 함)
+  // 분류·품목이 선택돼 있으면 프록시에 넘겨 '서버에서' 미리 걸러온다.
+  // (가락처럼 하루 수만 건인 시장은 API가 1,000건까지만 주므로 서버측 필터가 필수)
   let url = `${WORKER_URL}/?saledate=${dateStr}&whsalcd=${selMarket}`;
+  if (selCat)  url += `&cat=${encodeURIComponent(selCat)}`;
   if (selItem) url += `&item=${encodeURIComponent(selItem)}`;
+  fetchedCat = selCat; fetchedItem = selItem;
 
   // ▼ 서버(원본 API)가 느려 504/일시 오류가 나면 잠시 후 자동 재시도 (최대 3회)
   let json = null, lastErr = null;
@@ -1331,6 +1337,7 @@ async function doSearch(autoBack = 0) {
   }
 
   rawData = parseResponse(json);
+  lastTotal = parseInt(json?.response?.body?.totalCount) || 0;
 
   // ▼ 당일 데이터가 아직 없으면 자동으로 전날 조회 (최대 3일 전까지)
   //   전국 전체(all)는 API 미지원이므로 날짜를 거슬러도 의미 없음 → 제외
@@ -1384,6 +1391,20 @@ function parseResponse(json) {
   }).filter(d => d.price > 0);
 }
 
+// ===== 필터 기준 데이터 =====
+// 상위 선택(법인→분류→품목→품종)을 순서대로 적용한 데이터.
+// 드롭다운·분류선택 트리·모바일 칩 건수가 전부 이 함수를 쓰므로 항상 서로 일치한다.
+function filterBase(level) {
+  let d = rawData;
+  if (level === 'corp') return d;
+  if (selCorp) d = d.filter(x => x.corp === selCorp);
+  if (level === 'cat') return d;
+  if (selCat) d = d.filter(x => x.cat === selCat);
+  if (level === 'item') return d;
+  if (selItem) d = d.filter(x => x.item === selItem);
+  return d; // level === 'kind'
+}
+
 // ===== 필터링 & 렌더링 =====
 function filterAndRender() {
   let data = rawData;
@@ -1396,9 +1417,12 @@ function filterAndRender() {
   renderSelectionTree();
   renderCatTabs();
   renderTotalBar(allData);
-  let info = selKind
+  let info = (selCorp || selCat || selItem || selKind)
     ? `<strong>${allData.length}건</strong> 조회됨`
-    : `전체 <strong>${rawData.length}건</strong> · 품종을 선택하세요`;
+    : `전체 <strong>${rawData.length}건</strong> · 분류·품목을 선택하세요`;
+  if (lastTotal > rawData.length) {
+    info += ` · <span style="color:#e65100">전체 ${lastTotal.toLocaleString()}건 중 ${rawData.length.toLocaleString()}건 표시 — 분류·품목으로 좁혀 주세요</span>`;
+  }
   if (autoBackDays > 0 && rawData.length) {
     info += ` · <span style="color:#e65100">당일 데이터가 없어 ${selDate.replace(/-/g,'.')} 조회</span>`;
   }
@@ -1418,25 +1442,22 @@ function renderSelectionTree() {
 
   // 도매법인별 카운트
   const corpCounts = {};
-  rawData.forEach(d => { if(d.corp&&d.corp!=='-') corpCounts[d.corp]=(corpCounts[d.corp]||0)+1; });
+  filterBase('corp').forEach(d => { if(d.corp&&d.corp!=='-') corpCounts[d.corp]=(corpCounts[d.corp]||0)+1; });
   const corpList = Object.keys(corpCounts).sort();
 
   // 분류별 카운트 (선택된 법인 기준)
-  const catBase = selCorp ? rawData.filter(d=>d.corp===selCorp) : rawData;
   const catCounts = {};
-  catBase.forEach(d => { if(d.cat&&d.cat!=='-') catCounts[d.cat]=(catCounts[d.cat]||0)+1; });
+  filterBase('cat').forEach(d => { if(d.cat&&d.cat!=='-') catCounts[d.cat]=(catCounts[d.cat]||0)+1; });
   const catList = Object.keys(catCounts).sort();
 
-  // 품목별 카운트 (선택된 분류 기준)
-  const itemBase = selCat ? catBase.filter(d=>d.cat===selCat) : catBase;
+  // 품목별 카운트 (선택된 법인·분류 기준)
   const itemCounts = {};
-  itemBase.forEach(d => { if(d.item&&d.item!=='-') itemCounts[d.item]=(itemCounts[d.item]||0)+1; });
+  filterBase('item').forEach(d => { if(d.item&&d.item!=='-') itemCounts[d.item]=(itemCounts[d.item]||0)+1; });
   const itemList = Object.keys(itemCounts).sort();
 
-  // 품종별 카운트 (선택된 품목 기준)
-  const kindBase = selItem ? rawData.filter(d=>d.item===selItem) : itemBase;
+  // 품종별 카운트 (선택된 법인·분류·품목 기준)
   const kindCounts = {};
-  kindBase.forEach(d => { if(d.kind&&d.kind!=='-') kindCounts[d.kind]=(kindCounts[d.kind]||0)+1; });
+  filterBase('kind').forEach(d => { if(d.kind&&d.kind!=='-') kindCounts[d.kind]=(kindCounts[d.kind]||0)+1; });
   const kindList = Object.keys(kindCounts).sort();
 
   // 칩 HTML 생성: 선택=초록, 미선택=아웃라인, 데이터없음=숨김
@@ -1494,17 +1515,19 @@ function renderSelectionTree() {
       </div>` : ''}
     </div>`;
 
-  // × 버튼 이벤트
+  // × 버튼 이벤트 (선택 해제)
   el.querySelectorAll('.st-clear').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
       const type = btn.closest('[data-clear]').dataset.clear;
-      if (type==='market') { selMarket='all'; selCorp=''; selCat=''; selItem=''; selKind=''; }
-      if (type==='corp')   { selCorp=''; selCat=''; selItem=''; selKind=''; }
-      if (type==='cat')    { selCat=''; selItem=''; selKind=''; }
-      if (type==='item')   { selItem=''; selKind=''; }
-      if (type==='kind')   { selKind=''; }
-      renderSelectionTree(); updatePanel();
+      if (type === 'market') {
+        // 전국 전체 조회는 API 미지원 — 재조회 없이 안내만
+        selMarket='all'; selCorp=''; selCat=''; selItem=''; selKind='';
+        rawData=[]; allData=[]; lastTotal=0;
+        filterAndRender();
+        return;
+      }
+      applyFilter(type, '');
     });
   });
 
@@ -1512,22 +1535,15 @@ function renderSelectionTree() {
   el.querySelectorAll('.st-chip-outline').forEach(chip => {
     chip.addEventListener('click', e => {
       e.stopPropagation();
-      const type = chip.dataset.pick;
-      const val  = chip.dataset.val;
-      if (type==='market') { selMarket=val; selCorp=''; selCat=''; selItem=''; selKind=''; }
-      if (type==='corp')   { selCorp=val; selCat=''; selItem=''; selKind=''; }
-      if (type==='cat')    { selCat=val; selItem=''; selKind=''; }
-      if (type==='item')   { selItem=val; selKind=''; }
-      if (type==='kind')   { selKind=val; }
-      renderSelectionTree(); updatePanel();
+      applyFilter(chip.dataset.pick, chip.dataset.val);
     });
   });
 }
 
 // ===== 선택 헬퍼 =====
-function selectKind(kind) { selKind=kind; renderSelectionTree(); updatePanel(); }
-function quickSelect(item) { selItem=item; selKind=''; renderSelectionTree(); updatePanel(); }
-function selectCat(cat) { selCat=cat; selItem=''; selKind=''; renderSelectionTree(); updatePanel(); }
+function selectKind(kind) { applyFilter('kind', kind); }
+function quickSelect(item) { applyFilter('item', item); }
+function selectCat(cat) { applyFilter('cat', cat); }
 
 // ===== 카테고리 탭 =====
 function renderCatTabs() {
@@ -1652,12 +1668,12 @@ function toggleFilter(type, btn) {
       </div>`;
     });
   } else if (type === 'corp') {
-    const corpBase = rawData;
+    const base = filterBase('corp');
     const corpCounts = {};
-    corpBase.forEach(d => { if(d.corp&&d.corp!=='-') corpCounts[d.corp]=(corpCounts[d.corp]||0)+1; });
+    base.forEach(d => { if(d.corp&&d.corp!=='-') corpCounts[d.corp]=(corpCounts[d.corp]||0)+1; });
     const corps = Object.keys(corpCounts).sort();
     html = `<div class="fd-item${!selCorp?' active':''}" data-type="corp" data-val="">
-      <span>전체</span><span class="cnt">${rawData.length}건</span></div>`;
+      <span>전체</span><span class="cnt">${base.length}건</span></div>`;
     corps.forEach(c => {
       const cnt = corpCounts[c] || 0;
       html += `<div class="fd-item${selCorp===c?' active':''}" data-type="corp" data-val="${escAttr(c)}">
@@ -1665,12 +1681,13 @@ function toggleFilter(type, btn) {
       </div>`;
     });
   } else if (type === 'cat') {
+    const base = filterBase('cat');
     const counts = {};
-    rawData.forEach(d => { if(d.cat&&d.cat!=='-') counts[d.cat]=(counts[d.cat]||0)+1; });
+    base.forEach(d => { if(d.cat&&d.cat!=='-') counts[d.cat]=(counts[d.cat]||0)+1; });
     const dynCats = Object.keys(counts).filter(c => !FIXED_CATS.includes(c)).sort();
     const allCats = [...FIXED_CATS, ...dynCats];
     html = `<div class="fd-item${!selCat?' active':''}" data-type="cat" data-val="">
-      <span>전체</span><span class="cnt">${rawData.length}건</span></div>`;
+      <span>전체</span><span class="cnt">${base.length}건</span></div>`;
     allCats.forEach(c => {
       const cnt = counts[c] || 0;
       html += `<div class="fd-item${selCat===c?' active':''}" data-type="cat" data-val="${escAttr(c)}"
@@ -1679,7 +1696,7 @@ function toggleFilter(type, btn) {
       </div>`;
     });
   } else if (type === 'item') {
-    const base = selCat ? rawData.filter(d=>d.cat===selCat) : rawData;
+    const base = filterBase('item');
     const counts = {};
     base.forEach(d => { if(d.item&&d.item!=='-') counts[d.item]=(counts[d.item]||0)+1; });
     const dynItems = Object.keys(counts).filter(i => !FIXED_ITEMS.includes(i)).sort();
@@ -1694,7 +1711,7 @@ function toggleFilter(type, btn) {
       </div>`;
     });
   } else if (type === 'kind') {
-    const base = selItem ? rawData.filter(d=>d.item===selItem) : rawData;
+    const base = filterBase('kind');
     const kinds = [...new Set(base.map(d=>d.kind))].filter(k=>k&&k!=='-').sort();
     html = `<div class="fd-item${!selKind?' active':''}" data-type="kind" data-val="">
       <span>전체</span><span class="cnt">${base.length}건</span></div>`;
@@ -1718,12 +1735,33 @@ function toggleFilter(type, btn) {
 
 function pickFilter(type, val) {
   closeAllDropdowns();
-  if (type==='market') { selMarket=val; selCorp=''; selCat=''; selItem=''; selKind=''; }
-  else if (type==='corp')  { selCorp=val; selCat=''; selItem=''; selKind=''; }
-  else if (type==='cat')   { selCat=val;  selItem=''; selKind=''; }
-  else if (type==='item')  { selItem=val; selKind=''; }
-  else if (type==='kind')  { selKind=val; }
-  renderSelectionTree(); updatePanel();
+  applyFilter(type, val);
+}
+
+// ===== 필터 적용 (선택 즉시 반영) =====
+// 분류·품목은 서버측 필터(1,000건 잘림 대응)라 값이 바뀌면 재조회,
+// 법인·품종은 이미 받아온 데이터를 클라이언트에서 즉시 걸러 보여준다.
+function applyFilter(type, val) {
+  if (type === 'market') {
+    selMarket = val; selCorp=''; selCat=''; selItem=''; selKind='';
+    doSearch(); return;
+  }
+  if (type === 'corp') {
+    selCorp = val; selCat=''; selItem=''; selKind='';
+    if (fetchedCat || fetchedItem) doSearch(); else filterAndRender();
+    return;
+  }
+  if (type === 'cat') {
+    selCat = val; selItem=''; selKind='';
+    if (selCat !== fetchedCat || fetchedItem) doSearch(); else filterAndRender();
+    return;
+  }
+  if (type === 'item') {
+    selItem = val; selKind='';
+    if (selItem !== fetchedItem) doSearch(); else filterAndRender();
+    return;
+  }
+  if (type === 'kind') { selKind = val; filterAndRender(); }
 }
 
 function selectDate(val) { if (!val) return; selDate=val; updatePanel(); }
