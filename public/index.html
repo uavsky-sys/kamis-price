@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>농수산물 오늘 가격</title>
+<title>농산물 오늘 시세</title>
 <style>
 /* ===== 리셋 & 변수 ===== */
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -497,6 +497,23 @@ tbody td { padding: 6px 3px; text-align: center; vertical-align: middle; line-he
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ===== 푸터 (데이터 출처) ===== */
+.site-footer {
+  background: #e3ebe3;
+  border-top: 1px solid var(--border);
+  padding: 14px 16px;
+  text-align: center;
+  color: var(--sub);
+  font-size: 11px;
+  line-height: 1.75;
+}
+.site-footer a { color: var(--green2); text-decoration: none; font-weight: 700; }
+.site-footer a:hover { text-decoration: underline; }
+/* 모바일: 하단 고정 필터바(약 102px)에 가리지 않도록 여백 확보 */
+@media (max-width: 760px) {
+  .site-footer { padding-bottom: calc(114px + env(safe-area-inset-bottom)); }
+}
+
 /* ===== 하단 카테고리 탭 ===== */
 .cat-tab-bar {
   display: flex; overflow-x: auto; scrollbar-width: none;
@@ -697,7 +714,7 @@ tbody td { padding: 6px 3px; text-align: center; vertical-align: middle; line-he
       </span>
     </a>
     <div class="header-title">
-      <h1>🌾 농수산물 오늘 가격</h1>
+      <h1>🌾 농산물 오늘 시세</h1>
     </div>
     <div class="header-right">
       <div class="header-clock" id="header-clock">
@@ -816,7 +833,7 @@ tbody td { padding: 6px 3px; text-align: center; vertical-align: middle; line-he
 <div class="table-wrap">
 
   <!-- 모바일 전용 미니 헤더 -->
-  <div class="m-topbar"><span>🌾 농수산물 오늘 가격</span><button onclick="doSearch()">🔄 새로고침</button></div>
+  <div class="m-topbar"><span>🌾 농산물 오늘 시세</span><button onclick="doSearch()">🔄 새로고침</button></div>
 
   <div class="results-divider">📊 검색 결과</div>
 
@@ -847,6 +864,12 @@ tbody td { padding: 6px 3px; text-align: center; vertical-align: middle; line-he
 <div class="cat-tab-bar" id="cat-tab-bar"></div>
 
 </div><!-- /wrap -->
+
+<!-- 데이터 출처 (공공데이터 이용 시 출처 표시) -->
+<footer class="site-footer">
+  데이터 출처 ·
+  <a href="https://www.data.go.kr/data/15141808/openapi.do" target="_blank" rel="noopener">공공데이터포털</a>
+</footer>
 
 <!-- 모바일 하단 필터바 — 엄지가 닿는 곳에서 조건 확인·변경·검색 -->
 <div class="m-bottom-bar" id="m-bottom-bar">
