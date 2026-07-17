@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="농산물 오늘 시세">
+  <title>농산물 오늘 시세</title>
+  <rect width="512" height="512" rx="112" fill="#1b6b2f"/>
+  <line x1="256" y1="430" x2="256" y2="180" stroke="#ffffff" stroke-width="20" stroke-linecap="round"/>
+  <g fill="#ffffff">
+    <ellipse cx="256" cy="146" rx="23" ry="44"/>
+    <ellipse cx="210" cy="200" rx="21" ry="40" transform="rotate(-32 210 200)"/>
+    <ellipse cx="302" cy="200" rx="21" ry="40" transform="rotate(32 302 200)"/>
+    <ellipse cx="206" cy="266" rx="21" ry="40" transform="rotate(-32 206 266)"/>
+    <ellipse cx="306" cy="266" rx="21" ry="40" transform="rotate(32 306 266)"/>
+    <ellipse cx="206" cy="332" rx="21" ry="40" transform="rotate(-32 206 332)"/>
+    <ellipse cx="306" cy="332" rx="21" ry="40" transform="rotate(32 306 332)"/>
+  </g>
+</svg>
