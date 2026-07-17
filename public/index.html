@@ -909,7 +909,6 @@ const FIXED_ITEMS = [
 ];
 
 const MARKETS = [
-  {code:'all',    name:'전국 전체',  region:'전국'},
   {code:'110001', name:'서울 가락',  region:'서울'},
   {code:'110002', name:'서울 강서',  region:'서울'},
   {code:'120001', name:'인천 남촌',  region:'경기·인천'},
@@ -1059,7 +1058,7 @@ function favRun(i) {
   if (!saved) return;
   selDate   = favDate || selDate || new Date().toISOString().slice(0, 10);
   userDate  = selDate;
-  selMarket = saved.market || '110001';
+  selMarket = (saved.market && saved.market !== 'all') ? saved.market : '110001';  // 옛 '전국전체' 즐겨찾기는 기본 시장으로
   selCorp   = saved.corp   || '';
   selCat    = saved.cat    || '';
   selItem   = saved.item   || '';
@@ -1497,11 +1496,9 @@ function renderSelectionTree() {
     }).join('');
   }
 
-  // 시장 칩 (선택된 시장 + 나머지 시장 아웃라인)
-  let mktChipsHtml = selMarket === 'all'
-    ? `<span class="st-chip neutral">전국 전체${rawData.length ? ` <span class="st-cnt" style="color:#888">${rawData.length}건</span>` : ''}</span>`
-    : `<span class="st-chip" data-clear="market">${escHtml(mktName)} ${rawData.length ? `<span class="st-cnt">${rawData.length}건</span>` : ''}<button class="st-clear" title="선택 해제">×</button></span>`;
-  MARKETS.filter(m => m.code !== 'all' && m.code !== selMarket).forEach(m => {
+  // 시장 칩 (선택된 시장은 항상 하나 — 해제 불가, 나머지 시장은 아웃라인)
+  let mktChipsHtml = `<span class="st-chip neutral">${escHtml(mktName)}${rawData.length ? ` <span class="st-cnt" style="color:#888">${rawData.length}건</span>` : ''}</span>`;
+  MARKETS.filter(m => m.code !== selMarket).forEach(m => {
     mktChipsHtml += `<span class="st-chip-outline" data-pick="market" data-val="${escAttr(m.code)}">${escHtml(m.name)}</span>`;
   });
 
@@ -1539,13 +1536,6 @@ function renderSelectionTree() {
     btn.addEventListener('click', e => {
       e.stopPropagation();
       const type = btn.closest('[data-clear]').dataset.clear;
-      if (type === 'market') {
-        // 전국 전체 조회는 API 미지원 — 조건만 초기화
-        selMarket='all'; selCorp=''; selCat=''; selItem=''; selKind=''; autoCat=false;
-        rawData=[]; allData=[]; lastTotal=0;
-        showSearchPrompt();
-        return;
-      }
       applyFilter(type, '');
     });
   });
