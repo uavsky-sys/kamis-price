@@ -238,6 +238,29 @@ header {
   box-shadow: 0 1px 0 #7f0000, 0 3px 5px rgba(0,0,0,0.15);
 }
 
+/* ===== 페이지네이션 ===== */
+.pagination {
+  display:flex; justify-content:center; align-items:center; gap:4px;
+  padding:12px 8px 16px; flex-wrap:wrap; background:#fff;
+}
+.pg-btn {
+  min-width:34px; height:34px; padding:0 8px;
+  border:1px solid #d0d0d0; border-radius:8px;
+  background:linear-gradient(to bottom,#fff,#efefef);
+  font-size:12px; font-weight:700; color:#555;
+  cursor:pointer; font-family:inherit;
+  box-shadow:0 2px 0 #b0b0b0, 0 3px 5px rgba(0,0,0,0.08);
+  transition:transform .08s, box-shadow .08s;
+}
+.pg-btn:active { transform:translateY(2px); box-shadow:0 0 0 #b0b0b0; }
+.pg-btn.active {
+  background:linear-gradient(to bottom,#4caf50,#1b6b2f);
+  color:#fff; border-color:#155225;
+  box-shadow:0 2px 0 #0d4020, 0 3px 5px rgba(0,0,0,0.15);
+}
+.pg-btn:disabled { opacity:0.35; cursor:default; }
+.pg-info { font-size:11px; color:var(--sub); margin-left:8px; white-space:nowrap; }
+
 /* ===== 필터 드롭다운 ===== */
 .filter-dropdown {
   display: none;
@@ -808,6 +831,7 @@ tbody td { padding: 6px 3px; text-align: center; vertical-align: middle; line-he
       <tr class="empty-row"><td colspan="6">조건을 선택하고 검색하세요</td></tr>
     </tbody>
   </table>
+  <div class="pagination" id="pagination"></div>
 </div>
 
 <!-- 총거래 요약 바 (결과 표 하단) -->
@@ -1250,6 +1274,7 @@ function setSort(v) {
   selSort = v;
   ['pd','pa','it'].forEach(s => document.getElementById('sort-' + s).classList.remove('active'));
   document.getElementById('sort-' + (v==='price-desc'?'pd':v==='price-asc'?'pa':'it')).classList.add('active');
+  curPage = 1;   // 정렬이 바뀌면 1페이지부터
   renderTable(sortData(allData));
 }
 
@@ -1440,6 +1465,7 @@ function filterAndRender() {
   if (selItem) data = data.filter(d => d.item === selItem);
   if (selKind) data = data.filter(d => d.kindN === selKind);
   allData = data;
+  curPage = 1;   // 조건이 바뀌면 1페이지부터
   renderTable(sortData(allData));
   renderSelectionTree();
   renderCatTabs();
@@ -1646,6 +1672,9 @@ function makeCells(d) {
     <td class="td-price">${d.price.toLocaleString()}원</td>`;
 }
 
+const PAGE_SIZE = 15;   // 한 페이지에 표시할 결과 건수
+let curPage = 1;
+
 function renderTable(data) {
   if (!data.length) {
     const emptyMsg = selMarket === 'all'
@@ -1653,15 +1682,45 @@ function renderTable(data) {
       : '📭 경매 데이터가 없습니다<br><small style="color:#aaa">경매는 주로 새벽~오전에 진행됩니다</small>';
     document.getElementById('table-body').innerHTML =
       `<tr class="empty-row"><td colspan="6">${emptyMsg}</td></tr>`;
+    document.getElementById('pagination').innerHTML = '';
     return;
   }
+  const totalPages = Math.max(1, Math.ceil(data.length / PAGE_SIZE));
+  if (curPage > totalPages) curPage = totalPages;
+  if (curPage < 1) curPage = 1;
+  const start = (curPage - 1) * PAGE_SIZE;
+  const pageRows = data.slice(start, start + PAGE_SIZE);
   const tbody = document.getElementById('table-body');
   tbody.innerHTML = '';
-  for (let i = 0; i < data.length; i++) {
+  for (let i = 0; i < pageRows.length; i++) {
     const tr = document.createElement('tr');
-    tr.innerHTML = makeCells(data[i]);
+    tr.innerHTML = makeCells(pageRows[i]);
     tbody.appendChild(tr);
   }
+  renderPagination(data.length, totalPages);
+}
+
+function renderPagination(total, totalPages) {
+  const el = document.getElementById('pagination');
+  if (!el) return;
+  if (totalPages <= 1) { el.innerHTML = ''; return; }
+  const btn = (label, page, opt = {}) =>
+    `<button class="pg-btn${opt.active ? ' active' : ''}"${opt.disabled ? ' disabled' : ''} onclick="goPage(${page})">${label}</button>`;
+  // 현재 페이지 주변 5개만 노출
+  let s = Math.max(1, curPage - 2);
+  const e = Math.min(totalPages, s + 4);
+  s = Math.max(1, e - 4);
+  let html = btn('≪', 1, {disabled: curPage === 1}) + btn('◀', curPage - 1, {disabled: curPage === 1});
+  for (let p = s; p <= e; p++) html += btn(p, p, {active: p === curPage});
+  html += btn('▶', curPage + 1, {disabled: curPage === totalPages}) + btn('≫', totalPages, {disabled: curPage === totalPages});
+  html += `<span class="pg-info">${curPage}/${totalPages}페이지 · ${total.toLocaleString()}건</span>`;
+  el.innerHTML = html;
+}
+
+function goPage(p) {
+  curPage = p;
+  renderTable(sortData(allData));
+  document.querySelector('.results-divider')?.scrollIntoView({behavior: 'smooth'});
 }
 
 // ===== 드롭다운 =====
