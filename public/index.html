@@ -1346,7 +1346,9 @@ function setSort(v) {
 }
 
 document.addEventListener('click', (e) => {
-  if (!e.target.closest('.filter-btn')) closeAllDropdowns();
+  // 바깥 클릭 시 드롭다운 닫기 — 모바일 하단 칩(.mb-chip)은 드롭다운을 '여는' 버튼이므로 제외
+  // (제외 안 하면 칩 클릭이 여기까지 버블링돼 열리자마자 닫혀버림)
+  if (!e.target.closest('.filter-btn') && !e.target.closest('.mb-chip')) closeAllDropdowns();
 });
 
 // ===== 패널 업데이트 =====
@@ -1790,7 +1792,7 @@ function makeCells(d) {
   const qty = d.qty > 0 ? d.qty.toLocaleString() : '-';
   // 품목 칸: 최종 품목(정규화 품종명)만 한 줄로. 원본 품목/품종은 툴팁으로
   const finalName = (d.kindN && d.kindN !== '-') ? d.kindN : d.item;
-  return `<td style="font-size:10px;color:var(--sub)"><span class="td-dt"><span>${escHtml(d.dtDate || '')}</span><span>${escHtml(d.dtTime || d.time)}</span></span></td>
+  return `<td style="font-size:10px;color:var(--sub)" title="${escAttr(d.dtDate || '')}"><span class="td-dt"><span>${escHtml((d.dtDate || '').slice(5))}</span><span>${escHtml(d.dtTime || d.time)}</span></span></td>
     <td><span class="td-item" title="${escAttr(d.item + ' / ' + d.kind)}">${escHtml(finalName)}</span></td>
     <td style="font-size:10px;color:var(--sub)" title="${escAttr(d.orig)}">${escHtml(loc)}</td>
     <td style="font-size:10px">${qty}</td>
