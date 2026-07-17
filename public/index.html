@@ -777,7 +777,7 @@ tbody td { padding: 6px 3px; text-align: center; vertical-align: middle; line-he
     <span class="sort-bar-label">정렬</span>
     <button id="sort-pd" onclick="setSort('price-desc')" class="active">가격↓</button>
     <button id="sort-pa" onclick="setSort('price-asc')">가격↑</button>
-    <button id="sort-it" onclick="setSort('item')">품목순</button>
+    <button id="sort-it" onclick="setSort('orig')">산지순</button>
   </div>
 
 
@@ -915,8 +915,12 @@ function tcCardHtml(item, fixed) {
 }
 
 function tcGo(item) {
+  // 시세 카드 클릭은 '이 품목을 보여줘'라는 명시적 요청이므로 바로 검색 실행
   selItem = item; selCat = ''; selKind = ''; autoCat = false;
-  setQuickDate(0); // 날짜 갱신 + 검색 실행
+  selDate = new Date().toISOString().slice(0, 10);
+  document.getElementById('date-input-hidden').value = selDate;
+  updatePanel();
+  doSearch();
   const t = document.querySelector('.results-divider');
   if (t) t.scrollIntoView({ behavior: 'smooth' });
 }
@@ -1242,7 +1246,7 @@ document.addEventListener('DOMContentLoaded', () => {
   updateSelTreeTop();  // sticky 위치 + max-height 계산
   updateHeaderClock();
   setInterval(updateHeaderClock, 1000);
-  doSearch();
+  // 결과는 검색 버튼을 눌러야 표시 (자동 검색 안 함)
 });
 window.addEventListener('resize', () => { updateSelTreeTop(); fitSelTree(); });
 
@@ -1252,8 +1256,7 @@ function setQuickDate(daysAgo) {
   d.setDate(d.getDate() - daysAgo);
   selDate = d.toISOString().slice(0, 10);
   document.getElementById('date-input-hidden').value = selDate;
-  updatePanel();
-  doSearch();
+  showSearchPrompt();
 }
 
 function updateDateQuickBtns() {
@@ -1574,10 +1577,10 @@ function renderSelectionTree() {
       e.stopPropagation();
       const type = btn.closest('[data-clear]').dataset.clear;
       if (type === 'market') {
-        // 전국 전체 조회는 API 미지원 — 재조회 없이 안내만
+        // 전국 전체 조회는 API 미지원 — 조건만 초기화
         selMarket='all'; selCorp=''; selCat=''; selItem=''; selKind=''; autoCat=false;
         rawData=[]; allData=[]; lastTotal=0;
-        filterAndRender();
+        showSearchPrompt();
         return;
       }
       applyFilter(type, '');
@@ -1657,7 +1660,8 @@ function sortData(data) {
   return [...data].sort((a, b) => {
     if (selSort==='price-desc') return b.price - a.price;
     if (selSort==='price-asc')  return a.price - b.price;
-    return a.item.localeCompare(b.item, 'ko');
+    // 산지순 (같은 산지끼리는 품목순)
+    return a.orig.localeCompare(b.orig, 'ko') || a.item.localeCompare(b.item, 'ko');
   });
 }
 
@@ -1824,35 +1828,37 @@ function pickFilter(type, val) {
   applyFilter(type, val);
 }
 
-// ===== 필터 적용 (선택 즉시 반영) =====
-// 분류·품목은 서버측 필터(1,000건 잘림 대응)라 값이 바뀌면 재조회,
-// 법인·품종은 이미 받아온 데이터를 클라이언트에서 즉시 걸러 보여준다.
+// ===== 필터 적용 =====
+// 선택은 조건만 바꾸고, 결과는 검색 버튼을 눌러야 표시된다.
+// (조건이 바뀌면 이전 결과를 비워서 선택과 표가 어긋난 채 보이는 일이 없게 함)
 function applyFilter(type, val) {
-  if (type === 'market') {
-    selMarket = val; selCorp=''; selCat=''; selItem=''; selKind=''; autoCat=false;
-    doSearch(); return;
-  }
-  if (type === 'corp') {
-    selCorp = val; selCat=''; selItem=''; selKind=''; autoCat=false;
-    if (fetchedCat || fetchedItem) doSearch(); else filterAndRender();
-    return;
-  }
-  if (type === 'cat') {
-    selCat = val; selItem=''; selKind=''; autoCat=false;
-    if (selCat !== fetchedCat || fetchedItem) doSearch(); else filterAndRender();
-    return;
-  }
-  if (type === 'item') {
-    // 자동 유추된 분류는 품목이 바뀌면 함께 초기화 (새 품목의 분류로 다시 유추)
+  if (type === 'market')    { selMarket = val; selCorp=''; selCat=''; selItem=''; selKind=''; autoCat=false; }
+  else if (type === 'corp') { selCorp = val; selCat=''; selItem=''; selKind=''; autoCat=false; }
+  else if (type === 'cat')  { selCat = val; selItem=''; selKind=''; autoCat=false; }
+  else if (type === 'item') {
+    // 자동 유추된 분류는 품목이 바뀌면 함께 초기화 (검색 시 새 품목의 분류로 다시 유추)
     if (autoCat) { selCat = ''; autoCat = false; }
     selItem = val; selKind='';
-    if (selItem !== fetchedItem || selCat !== fetchedCat) doSearch(); else filterAndRender();
-    return;
   }
-  if (type === 'kind') { selKind = val; filterAndRender(); }
+  else if (type === 'kind') { selKind = val; }
+  showSearchPrompt();
 }
 
-function selectDate(val) { if (!val) return; selDate=val; updatePanel(); }
+// 결과 영역을 비우고 "검색을 누르세요" 안내 표시
+function showSearchPrompt() {
+  allData = [];
+  document.getElementById('table-body').innerHTML =
+    '<tr class="empty-row"><td colspan="6">🔍 조건 설정 후 <strong>검색</strong>을 누르면 결과가 표시됩니다</td></tr>';
+  document.getElementById('pagination').innerHTML = '';
+  document.getElementById('cat-tab-bar').innerHTML = '';
+  const tb = document.getElementById('total-bar');
+  if (tb) { tb.style.display = 'none'; tb.innerHTML = ''; }
+  document.getElementById('result-info').textContent = '검색을 누르면 결과가 표시됩니다';
+  renderSelectionTree();
+  updatePanel();
+}
+
+function selectDate(val) { if (!val) return; selDate=val; showSearchPrompt(); }
 
 // ===== XSS 방어 유틸 =====
 function escHtml(str) {
