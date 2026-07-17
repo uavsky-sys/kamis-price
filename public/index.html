@@ -600,40 +600,6 @@ tbody td { padding: 6px 3px; text-align: center; vertical-align: middle; line-he
   flex-shrink: 0; font-family: inherit; line-height: 1;
 }
 .fav-del-btn:active { color: var(--red); }
-/* 오늘의 시세 접기/펼치기 */
-.tc-toggle {
-  background: linear-gradient(to bottom, #fff, #f0f7f2);
-  border: 1px solid var(--green2); border-radius: 12px;
-  color: var(--green); font-size: 11px; font-weight: 800;
-  padding: 4px 12px; cursor: pointer; font-family: inherit;
-  box-shadow: 0 2px 0 #8fbd9a; white-space: nowrap;
-  transition: transform .08s, box-shadow .08s;
-}
-.tc-toggle:active { transform: translateY(2px); box-shadow: 0 0 0 #8fbd9a; }
-.today-cards.closed .tc-grid, .today-cards.closed .tc-hint, .today-cards.closed .tc-note { display: none; }
-
-/* ===== 오늘의 시세 카드 ===== */
-.today-cards { margin: 12px 0 4px; }
-.tc-head { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 4px; padding: 0 2px 8px; }
-.tc-title { font-size: 15px; font-weight: 700; }
-.tc-date { font-size: 12px; font-weight: 500; color: var(--gray, #6B7280); margin-left: 4px; }
-.tc-note { font-size: 11px; color: var(--gray, #9CA3AF); }
-.tc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-@media (max-width: 760px) { .tc-grid { grid-template-columns: repeat(2, 1fr); } }
-.tc-card { background: #fff; border: 1px solid #E5E7EB; border-radius: 12px; padding: 11px 12px 10px;
-  cursor: pointer; transition: transform .15s, box-shadow .15s; min-height: 84px; }
-.tc-card:active { transform: scale(.98); }
-.tc-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,.08); }
-.tc-card.fixed { border: 2px solid #6B4FA0; background: #FBFAFE; }
-.tc-item { font-size: 12.5px; color: #4B5563; font-weight: 600; display: flex; gap: 4px; align-items: center; }
-.tc-unit { font-size: 10px; color: #9CA3AF; font-weight: 400; }
-.tc-price { font-size: 17px; font-weight: 800; margin-top: 4px; color: #111827; }
-.tc-diff { font-size: 11.5px; margin-top: 3px; font-weight: 600; }
-.tc-diff.up { color: #D32F2F; }
-.tc-diff.down { color: #1565C0; }
-.tc-diff.flat, .tc-diff.na { color: #9CA3AF; font-weight: 400; }
-.tc-card.loading .tc-price { color: #D1D5DB; }
-.tc-hint { text-align: center; font-size: 11px; color: #9CA3AF; padding: 8px 0 2px; }
 
 /* ===========================
    모바일 최적화 — 큰 글씨 표 + 하단 필터바
@@ -681,7 +647,7 @@ tbody td { padding: 6px 3px; text-align: center; vertical-align: middle; line-he
 .td-dt { display: inline-flex; flex-direction: column; line-height: 1.45; }
 @media (max-width: 760px) {
   header, .date-bar, .sort-bar, .sel-tree, .results-divider,
-  .today-cards, .total-bar, .cat-tab-bar { display: none !important; }
+  .total-bar, .cat-tab-bar { display: none !important; }
   /* 모바일 상단 즐겨찾기 — 컴팩트 표시 (sticky 해제해서 스크롤 시 표 헤더에 자리 양보) */
   .sticky-top { position: static; box-shadow: none; }
   .fav-bar { padding: 6px 8px; gap: 4px 5px; }
@@ -849,18 +815,6 @@ tbody td { padding: 6px 3px; text-align: center; vertical-align: middle; line-he
 <!-- 결과 테이블 -->
 <div class="table-wrap">
 
-  <!-- 검색 결과 구분선 -->
-  <!-- 오늘의 시세 카드 (매월 제철 인기 품목 + 블루베리 고정) -->
-  <div class="today-cards" id="today-cards">
-    <div class="tc-head">
-      <span class="tc-title">🫐 오늘의 시세 <span class="tc-date" id="tc-date-label"></span></span>
-      <span class="tc-note">전국 도매시장 · 대표 규격 평균 · 어제 대비</span>
-      <button class="tc-toggle" id="tc-toggle" onclick="toggleTodayCards()">▲ 접기</button>
-    </div>
-    <div class="tc-grid" id="tc-grid"></div>
-    <div class="tc-hint">카드를 누르면 상세 경매 내역을 보여드려요</div>
-  </div>
-
   <!-- 모바일 전용 미니 헤더 -->
   <div class="m-topbar"><span>🌾 농수산물 오늘 가격</span><button onclick="doSearch()">🔄 새로고침</button></div>
 
@@ -910,154 +864,7 @@ tbody td { padding: 6px 3px; text-align: center; vertical-align: middle; line-he
 <script>
 const WORKER_URL = 'https://mafra-proxy.uavsky.workers.dev';
 
-// ===== 오늘의 시세 카드 =====
-// 매월 제철 인기 품목 7개 + 블루베리 고정(맨 앞)
-const SEASONAL_ITEMS = {
-  1:  ['딸기','감귤','사과','배추','무','대파','시금치'],
-  2:  ['딸기','감귤','사과','배','시금치','대파','버섯'],
-  3:  ['딸기','참외','토마토','오이','미나리','양파','감자'],
-  4:  ['참외','딸기','토마토','방울토마토','오이','양파','감자'],
-  5:  ['참외','수박','토마토','체리','오이','감자','양파'],
-  6:  ['수박','참외','복숭아','자두','토마토','감자','옥수수'],
-  7:  ['수박','복숭아','포도','자두','옥수수','오이','참외'],
-  8:  ['수박','복숭아','포도','자두','옥수수','배','사과'],
-  9:  ['사과','배','포도','고구마','버섯','배추','무'],
-  10: ['사과','배','감귤','고구마','배추','무','버섯'],
-  11: ['배추','무','사과','감귤','대파','마늘','고구마'],
-  12: ['딸기','감귤','배추','무','사과','대파','시금치'],
-};
 
-function tcYmd(daysAgo) {
-  const d = new Date(Date.now() + 9 * 3600 * 1000); // KST
-  d.setDate(d.getDate() - daysAgo);
-  return d.toISOString().slice(0, 10).replace(/-/g, '');
-}
-
-async function tcFetch(item, ymd) {
-  const url = `${WORKER_URL}/?saledate=${ymd}&item=${encodeURIComponent(item)}`;
-  const r = await fetchWithTimeout(url, 15000);
-  const j = await r.json();
-  return (j?.response?.body?.items?.item) || [];
-}
-
-// 대표 규격(가장 거래 많은 단위) 그룹의 평균 경락가
-function tcRep(rows, forceUnit) {
-  if (!rows || !rows.length) return null;
-  const groups = {};
-  rows.forEach((r) => {
-    const key = `${parseFloat(r.unit_qty) || ''}${r.unit_nm || ''}`;
-    (groups[key] = groups[key] || []).push(parseFloat(r.scsbd_prc) || 0);
-  });
-  let pick = forceUnit && groups[forceUnit] ? forceUnit : null;
-  if (!pick) {
-    let bestLen = -1;
-    for (const k in groups) if (groups[k].length > bestLen) { bestLen = groups[k].length; pick = k; }
-  }
-  const arr = groups[pick];
-  if (!arr || !arr.length) return null;
-  return { unit: pick, avg: arr.reduce((a, b) => a + b, 0) / arr.length, n: rows.length };
-}
-
-function tcCardHtml(item, fixed) {
-  return `<div class="tc-card loading${fixed ? ' fixed' : ''}" id="tc-${item}" onclick="tcGo('${item}')">
-    <div class="tc-item">${fixed ? '⭐ ' : ''}${item} <span class="tc-unit" id="tcu-${item}"></span></div>
-    <div class="tc-price" id="tcp-${item}">불러오는 중…</div>
-    <div class="tc-diff na" id="tcd-${item}"></div>
-  </div>`;
-}
-
-function tcGo(item) {
-  // 시세 카드 클릭은 '이 품목을 보여줘'라는 명시적 요청이므로 바로 검색 실행
-  selItem = item; selCat = ''; selKind = ''; autoCat = false;
-  selDate = new Date().toISOString().slice(0, 10);
-  userDate = selDate;
-  document.getElementById('date-input-hidden').value = selDate;
-  updatePanel();
-  doSearch();
-  const t = document.querySelector('.results-divider');
-  if (t) t.scrollIntoView({ behavior: 'smooth' });
-}
-
-async function tcLoadOne(item) {
-  const priceEl = document.getElementById('tcp-' + item);
-  const diffEl = document.getElementById('tcd-' + item);
-  const unitEl = document.getElementById('tcu-' + item);
-  const card = document.getElementById('tc-' + item);
-  try {
-    let label = '';
-    let today = await tcFetch(item, tcYmd(0));
-    let yest = await tcFetch(item, tcYmd(1));
-    if (!today.length && yest.length) { // 새벽 등 오늘 거래 없음 → 어제 시세로
-      today = yest; yest = await tcFetch(item, tcYmd(2)); label = '어제';
-    }
-    const rep = tcRep(today);
-    if (!rep) {
-      priceEl.textContent = '거래 없음';
-      diffEl.textContent = '최근 2일 경매 기록 없음';
-      diffEl.className = 'tc-diff na';
-      card.classList.remove('loading');
-      return;
-    }
-    unitEl.textContent = rep.unit + (label ? ' · ' + label : '');
-    priceEl.textContent = Math.round(rep.avg).toLocaleString() + '원';
-    const prev = tcRep(yest, rep.unit);
-    if (prev && prev.avg > 0) {
-      const pct = ((rep.avg - prev.avg) / prev.avg) * 100;
-      if (pct >= 0.5)      { diffEl.textContent = '▲ ' + pct.toFixed(1) + '% 어제보다'; diffEl.className = 'tc-diff up'; }
-      else if (pct <= -0.5){ diffEl.textContent = '▼ ' + Math.abs(pct).toFixed(1) + '% 어제보다'; diffEl.className = 'tc-diff down'; }
-      else                 { diffEl.textContent = '— 어제와 비슷'; diffEl.className = 'tc-diff flat'; }
-    } else {
-      diffEl.textContent = '어제 기록 없음';
-      diffEl.className = 'tc-diff na';
-    }
-    card.classList.remove('loading');
-  } catch (e) {
-    priceEl.textContent = '오류';
-    diffEl.textContent = '잠시 후 새로고침해 주세요';
-    diffEl.className = 'tc-diff na';
-    card.classList.remove('loading');
-  }
-}
-
-let tcLoaded = false;
-function loadTodayCards() {
-  if (tcLoaded) return;
-  const grid = document.getElementById('tc-grid');
-  if (!grid) return;
-  tcLoaded = true;
-  const month = new Date(Date.now() + 9 * 3600 * 1000).getMonth() + 1;
-  const items = ['블루베리', ...(SEASONAL_ITEMS[month] || SEASONAL_ITEMS[7])];
-  grid.innerHTML = items.map((it, i) => tcCardHtml(it, i === 0)).join('');
-  const lbl = document.getElementById('tc-date-label');
-  if (lbl) lbl.textContent = month + '월 제철 품목';
-  items.forEach((it) => tcLoadOne(it));
-}
-
-// 접기/펼치기 — 상태는 기억, 접힌 상태로 시작하면 카드 로딩(시세 조회)도 펼칠 때까지 미룸
-function toggleTodayCards() {
-  const box = document.getElementById('today-cards');
-  if (!box) return;
-  const closed = box.classList.toggle('closed');
-  try { localStorage.setItem('tc_open', closed ? '0' : '1'); } catch(e) {}
-  const btn = document.getElementById('tc-toggle');
-  if (btn) btn.textContent = closed ? '▼ 펼치기' : '▲ 접기';
-  if (!closed) loadTodayCards();
-}
-
-function initTodayCards() {
-  // 모바일(≤760px)에서는 '오늘의 시세'를 표시하지 않으므로 시세 조회(API 8개)도 하지 않는다
-  if (window.innerWidth <= 760) return;
-  const closed = (() => { try { return localStorage.getItem('tc_open') === '0'; } catch(e) { return false; } })();
-  if (closed) {
-    const box = document.getElementById('today-cards');
-    if (box) box.classList.add('closed');
-    const btn = document.getElementById('tc-toggle');
-    if (btn) btn.textContent = '▼ 펼치기';
-    return;  // 펼칠 때 로딩
-  }
-  loadTodayCards();
-}
-document.addEventListener('DOMContentLoaded', initTodayCards);
 
 // ===== 모바일 하단 필터바 =====
 function mbOpen(type) {
