@@ -670,9 +670,16 @@ tbody td { padding: 6px 3px; text-align: center; vertical-align: middle; line-he
 @media (max-width: 760px) {
   header, .date-bar, .fav-bar, .sort-bar, .sel-tree, .results-divider,
   .today-cards, .total-bar, .cat-tab-bar { display: none !important; }
-  .filter-panel, .filter-row, .filter-btn { visibility: hidden; height: 0 !important;
-    padding: 0 !important; margin: 0 !important; border: 0 !important; overflow: visible; }
-  .filter-dropdown.open { visibility: visible; position: fixed; left: 8px; right: 8px;
+  /* 데스크톱 필터 버튼 숨김 — visibility:hidden은 쓰지 않는다!
+     (숨긴 부모 안의 드롭다운은 화면에 보여도 실제 터치가 무시됨 — 삼성 등 모바일에서 선택 불가 버그)
+     버튼을 0크기·무배경으로 만들고 내용물만 감춰서, 자식 드롭다운의 터치 판정을 살린다 */
+  .filter-panel, .filter-row { height: 0 !important; padding: 0 !important; margin: 0 !important;
+    border: 0 !important; background: none !important; overflow: visible; }
+  .filter-btn { height: 0 !important; min-width: 0 !important; padding: 0 !important; margin: 0 !important;
+    border: 0 !important; background: none !important; box-shadow: none !important; overflow: visible; }
+  .filter-btn .fb-label, .filter-btn .fb-value, .filter-btn .fb-count { display: none; }
+  .filter-row > .search-btn { display: none; }
+  .filter-dropdown.open { position: fixed; left: 8px; right: 8px;
     top: auto !important; bottom: 122px; max-height: 52vh; overflow-y: auto; z-index: 70;
     border-radius: 12px; box-shadow: 0 -6px 24px rgba(0,0,0,0.28); }
   .m-topbar { position: sticky; top: 0; z-index: 40; display: flex; align-items: center;
@@ -849,7 +856,7 @@ tbody td { padding: 6px 3px; text-align: center; vertical-align: middle; line-he
     </colgroup>
     <thead>
       <tr>
-        <th>시간</th><th>품목</th><th>산지</th><th>거래량</th><th>규격</th><th>경락가</th>
+        <th>일자</th><th>품목</th><th>산지</th><th>거래량</th><th>규격</th><th>경락가</th>
       </tr>
     </thead>
     <tbody id="table-body">
@@ -1792,7 +1799,7 @@ function makeCells(d) {
   const qty = d.qty > 0 ? d.qty.toLocaleString() : '-';
   // 품목 칸: 최종 품목(정규화 품종명)만 한 줄로. 원본 품목/품종은 툴팁으로
   const finalName = (d.kindN && d.kindN !== '-') ? d.kindN : d.item;
-  return `<td style="font-size:10px;color:var(--sub)" title="${escAttr(d.dtDate || '')}"><span class="td-dt"><span>${escHtml((d.dtDate || '').slice(5))}</span><span>${escHtml(d.dtTime || d.time)}</span></span></td>
+  return `<td style="font-size:11px;color:var(--sub)" title="${escAttr((d.dtDate || '') + ' ' + (d.dtTime || d.time))}">${escHtml((d.dtDate || '').slice(5) || '-')}</td>
     <td><span class="td-item" title="${escAttr(d.item + ' / ' + d.kind)}">${escHtml(finalName)}</span></td>
     <td style="font-size:10px;color:var(--sub)" title="${escAttr(d.orig)}">${escHtml(loc)}</td>
     <td style="font-size:10px">${qty}</td>
@@ -1942,12 +1949,25 @@ function toggleFilter(type, btn) {
   }
 
   dd.innerHTML = html;
-  dd.querySelectorAll('.fd-item[data-type]').forEach(el => {
-    el.addEventListener('click', e => {
+  // 항목 클릭은 컨테이너에 한 번만 위임 — innerHTML 재렌더링에도 리스너가 유실되지 않는다
+  if (!dd.dataset.bound) {
+    dd.dataset.bound = '1';
+    dd.__home = dd.parentElement;   // 데스크톱 원위치 (filter-btn 안, absolute 기준)
+    dd.addEventListener('click', e => {
+      const it = e.target.closest('.fd-item[data-type]');
+      if (!it) return;
       e.stopPropagation();
-      pickFilter(el.dataset.type, el.dataset.val);
+      pickFilter(it.dataset.type, it.dataset.val);
     });
-  });
+  }
+  // 모바일: 상단 필터바가 높이 0으로 접혀 있어 그 안의 드롭다운은 화면에 그려져도
+  // 실제 터치 판정이 무시된다(브라우저 히트테스트가 접힌 영역을 건너뜀).
+  // 열 때 body 최상위로 옮겨 터치가 정상 동작하게 하고, 데스크톱에선 원위치로 되돌린다.
+  if (window.innerWidth <= 760) {
+    if (dd.parentElement !== document.body) document.body.appendChild(dd);
+  } else if (dd.__home && dd.parentElement !== dd.__home) {
+    dd.__home.appendChild(dd);
+  }
   dd.classList.add('open');
 }
 
