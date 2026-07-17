@@ -497,6 +497,24 @@ tbody td { padding: 6px 3px; text-align: center; vertical-align: middle; line-he
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ===== 토스트 알림 (즐겨찾기 저장 확인 등) ===== */
+.toast {
+  position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(12px);
+  z-index: 80;                      /* 하단 고정바(60)보다 위 */
+  background: #1F3D2E; color: #fff;
+  font-size: 13px; font-weight: 700; line-height: 1.5;
+  padding: 11px 18px; border-radius: 999px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.28);
+  max-width: 90vw; text-align: center;
+  opacity: 0; pointer-events: none;
+  transition: opacity .18s, transform .18s;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+@media (max-width: 760px) {
+  /* 하단 필터바(약 102px)를 피해 위로 */
+  .toast { bottom: calc(122px + env(safe-area-inset-bottom)); font-size: 12.5px; padding: 10px 15px; }
+}
+
 /* ===== 푸터 (데이터 출처) ===== */
 .site-footer {
   background: #e3ebe3;
@@ -871,6 +889,9 @@ tbody td { padding: 6px 3px; text-align: center; vertical-align: middle; line-he
 
 </div><!-- /wrap -->
 
+<!-- 토스트 알림 -->
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
 <!-- 데이터 출처 (공공데이터 이용 시 출처 표시) -->
 <footer class="site-footer">
   데이터 출처 ·
@@ -1070,16 +1091,32 @@ function favPathHtml(f) {
   ).join('');
 }
 
+// 짧은 알림 — 저장이 됐는지 알 길이 없던 문제를 메운다
+let toastTimer = null;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
+}
+
 function favSaveSlot(i) {
   const cur = { market: selMarket, corp: selCorp, cat: selCat, item: selItem, kind: selKind };
+  const wasEmpty = !loadFavs()[i];
   saveFavs(loadFavs().map((f, idx) => idx === i ? cur : f));
   renderFavSlots();
+  showToast(wasEmpty
+    ? `⭐ 즐겨찾기${i + 1}에 저장했습니다 — 다음부터 🔍 만 누르세요`
+    : `⭐ 즐겨찾기${i + 1}을 지금 조건으로 바꿨습니다`);
 }
 
 function favDelSlot(i, e) {
   e.stopPropagation();
   saveFavs(loadFavs().map((f, idx) => idx === i ? null : f));
   renderFavSlots();
+  showToast(`즐겨찾기${i + 1}을 삭제했습니다`);
 }
 
 function favRun(i) {
