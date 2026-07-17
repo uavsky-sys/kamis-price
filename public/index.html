@@ -658,7 +658,19 @@ tbody td { padding: 6px 3px; text-align: center; vertical-align: middle; line-he
   tbody tr:nth-child(even) { background: #EEF7EE; }
   tbody tr { border-bottom: 1px solid #E2EEE2; }
   .td-item { font-size: 14.5px !important; font-weight: 800 !important; }
-  .td-price { font-size: 15px !important; font-weight: 800 !important; color: #C62828 !important; }
+  .td-price { font-size: 14px !important; font-weight: 800 !important; color: #C62828 !important; }
+  /* 열 폭 재배분 — 경락가가 끝까지 보이도록 (합계 100%) */
+  table { table-layout: fixed; }
+  thead th { font-size: 12px !important; padding: 11px 2px !important; }
+  col:nth-child(1) { width: 10% !important; }   /* 일자 (MM-DD) */
+  col:nth-child(2) { width: 26% !important; }   /* 품목 */
+  col:nth-child(3) { width: 15% !important; }   /* 산지 */
+  col:nth-child(4) { width: 10% !important; }   /* 거래량 */
+  col:nth-child(5) { width: 14% !important; }   /* 규격 */
+  col:nth-child(6) { width: 25% !important; }   /* 경락가 */
+  tbody td { padding: 13px 2px !important; }
+  tbody td:nth-child(1) { white-space: nowrap; font-size: 10.5px !important; }
+  tbody td:nth-child(3) { white-space: nowrap; text-overflow: ellipsis; }
 }
 
 /* ===========================
