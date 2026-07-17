@@ -553,40 +553,49 @@ tbody td { padding: 6px 3px; text-align: center; vertical-align: middle; line-he
   border: 1px solid #b8dcc2; border-radius: 10px;
   cursor: pointer; white-space: nowrap; user-select: none;
 }
-.fav-path {
-  flex: 1; display: flex; align-items: center; gap: 2px;
-  overflow: hidden; min-width: 0;
-}
-.fav-seg {
-  background: #fff; border: 1px solid #c2dfc9; border-radius: 10px;
-  padding: 3px 7px; font-size: 10px; font-weight: 700; color: #1b6b2f;
-  white-space: nowrap; max-width: 72px;
-  overflow: hidden; text-overflow: ellipsis; flex-shrink: 1;
-}
-.fav-sep { color: #8fbd9a; font-size: 10px; font-weight: 900; flex-shrink: 0; }
-.fav-empty { color: #aaa; font-size: 10px; font-style: italic; white-space: nowrap; }
-.fav-save-btn {
-  background: linear-gradient(to bottom, #fffde7, #fff8c0);
-  border: 1px solid #e0b800; border-radius: 12px;
-  color: #7a6000; font-size: 10px; font-weight: 800;
-  padding: 4px 10px; cursor: pointer; font-family: inherit;
-  box-shadow: 0 2px 0 #c0a000; white-space: nowrap; flex-shrink: 0;
+/* 즐겨찾기 슬롯 2개 */
+.fav-slots { flex: 1; display: flex; gap: 6px; min-width: 0; }
+.fav-slot2 {
+  flex: 1; min-width: 0;
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  border-radius: 12px; padding: 4px 10px;
+  font-size: 10px; font-weight: 800; font-family: inherit;
+  cursor: pointer; white-space: nowrap;
   transition: transform .08s, box-shadow .08s;
 }
-.fav-save-btn:active { transform: translateY(2px); box-shadow: 0 0 0; }
-.fav-search-btn {
+.fav-slot2 .fav-slot2-label {
+  overflow: hidden; text-overflow: ellipsis; min-width: 0;
+}
+.fav-slot2.filled {
   background: linear-gradient(to bottom, #4caf50, #1b6b2f);
-  border: none; border-radius: 14px;
-  color: #fff; font-size: 11px; font-weight: 800;
-  padding: 5px 14px; cursor: pointer; font-family: inherit;
-  box-shadow: 0 3px 0 #0d4020, 0 4px 6px rgba(0,0,0,0.18);
-  white-space: nowrap; flex-shrink: 0;
+  border: 1px solid #155225; color: #fff;
+  box-shadow: 0 2px 0 #0d4020, 0 3px 5px rgba(0,0,0,0.15);
+}
+.fav-slot2.filled:active { transform: translateY(2px); box-shadow: 0 0 0 #0d4020; }
+.fav-slot2.empty {
+  background: linear-gradient(to bottom, #fffde7, #fff8c0);
+  border: 1px dashed #e0b800; color: #7a6000;
+  box-shadow: 0 2px 0 #c0a000;
+}
+.fav-slot2.empty:active { transform: translateY(2px); box-shadow: 0 0 0; }
+.fav-slot2-x {
+  background: rgba(255,255,255,0.25); border: none; color: #fff;
+  border-radius: 50%; width: 15px; height: 15px; line-height: 15px;
+  font-size: 10px; text-align: center; cursor: pointer; padding: 0;
+  flex-shrink: 0; font-family: inherit;
+}
+.fav-slot2-x:active { background: rgba(255,255,255,0.5); }
+/* 오늘의 시세 접기/펼치기 */
+.tc-toggle {
+  background: linear-gradient(to bottom, #fff, #f0f7f2);
+  border: 1px solid var(--green2); border-radius: 12px;
+  color: var(--green); font-size: 11px; font-weight: 800;
+  padding: 4px 12px; cursor: pointer; font-family: inherit;
+  box-shadow: 0 2px 0 #8fbd9a; white-space: nowrap;
   transition: transform .08s, box-shadow .08s;
 }
-.fav-search-btn:active {
-  transform: translateY(3px);
-  box-shadow: 0 0 0 #0d4020, 0 1px 3px rgba(0,0,0,0.1);
-}
+.tc-toggle:active { transform: translateY(2px); box-shadow: 0 0 0 #8fbd9a; }
+.today-cards.closed .tc-grid, .today-cards.closed .tc-hint, .today-cards.closed .tc-note { display: none; }
 
 /* ===== 오늘의 시세 카드 ===== */
 .today-cards { margin: 12px 0 4px; }
@@ -717,14 +726,8 @@ tbody td { padding: 6px 3px; text-align: center; vertical-align: middle; line-he
         style="position:absolute;left:30px;bottom:0;width:1px;height:1px;opacity:0;border:0;padding:0;pointer-events:none"
         onchange="favSetDate(this.value)">
     </div>
-    <!-- 필터 경로 -->
-    <div class="fav-path" id="fav-path">
-      <span class="fav-empty">저장된 즐겨찾기 없음</span>
-    </div>
-    <!-- 저장 버튼 -->
-    <button class="fav-save-btn" id="fav-save-btn" onclick="saveFav()">💾 저장</button>
-    <!-- 검색 버튼 -->
-    <button class="fav-search-btn" onclick="favSearch()">🔍 검색</button>
+    <!-- 즐겨찾기 슬롯 2개: 빈 슬롯 클릭=현재 조건 저장, 저장된 슬롯 클릭=그 조건으로 검색 -->
+    <div class="fav-slots" id="fav-slots"></div>
   </div>
 
   <!-- 필터 패널 (5버튼 + 검색) -->
@@ -806,10 +809,11 @@ tbody td { padding: 6px 3px; text-align: center; vertical-align: middle; line-he
 
   <!-- 검색 결과 구분선 -->
   <!-- 오늘의 시세 카드 (매월 제철 인기 품목 + 블루베리 고정) -->
-  <div class="today-cards">
+  <div class="today-cards" id="today-cards">
     <div class="tc-head">
       <span class="tc-title">🫐 오늘의 시세 <span class="tc-date" id="tc-date-label"></span></span>
       <span class="tc-note">전국 도매시장 · 대표 규격 평균 · 어제 대비</span>
+      <button class="tc-toggle" id="tc-toggle" onclick="toggleTodayCards()">▲ 접기</button>
     </div>
     <div class="tc-grid" id="tc-grid"></div>
     <div class="tc-hint">카드를 누르면 상세 경매 내역을 보여드려요</div>
@@ -972,15 +976,41 @@ async function tcLoadOne(item) {
   }
 }
 
-function initTodayCards() {
+let tcLoaded = false;
+function loadTodayCards() {
+  if (tcLoaded) return;
   const grid = document.getElementById('tc-grid');
   if (!grid) return;
+  tcLoaded = true;
   const month = new Date(Date.now() + 9 * 3600 * 1000).getMonth() + 1;
   const items = ['블루베리', ...(SEASONAL_ITEMS[month] || SEASONAL_ITEMS[7])];
   grid.innerHTML = items.map((it, i) => tcCardHtml(it, i === 0)).join('');
   const lbl = document.getElementById('tc-date-label');
   if (lbl) lbl.textContent = month + '월 제철 품목';
   items.forEach((it) => tcLoadOne(it));
+}
+
+// 접기/펼치기 — 상태는 기억, 접힌 상태로 시작하면 카드 로딩(시세 조회)도 펼칠 때까지 미룸
+function toggleTodayCards() {
+  const box = document.getElementById('today-cards');
+  if (!box) return;
+  const closed = box.classList.toggle('closed');
+  try { localStorage.setItem('tc_open', closed ? '0' : '1'); } catch(e) {}
+  const btn = document.getElementById('tc-toggle');
+  if (btn) btn.textContent = closed ? '▼ 펼치기' : '▲ 접기';
+  if (!closed) loadTodayCards();
+}
+
+function initTodayCards() {
+  const closed = (() => { try { return localStorage.getItem('tc_open') === '0'; } catch(e) { return false; } })();
+  if (closed) {
+    const box = document.getElementById('today-cards');
+    if (box) box.classList.add('closed');
+    const btn = document.getElementById('tc-toggle');
+    if (btn) btn.textContent = '▼ 펼치기';
+    return;  // 펼칠 때 로딩
+  }
+  loadTodayCards();
 }
 document.addEventListener('DOMContentLoaded', initTodayCards);
 
@@ -1079,7 +1109,7 @@ let favDate = '';
 function initFav() {
   favDate = selDate;
   updateFavDateChip();
-  renderFavPath();
+  renderFavSlots();
 }
 
 function updateFavDateChip() {
@@ -1124,59 +1154,48 @@ function favSetDate(val) {
   updateFavDateChip();
 }
 
-function loadFavData() {
+// 즐겨찾기 2개 슬롯 — 저장값은 배열 [슬롯1, 슬롯2] (구버전 단일 객체는 슬롯1로 이전)
+function loadFavs() {
   try {
     const raw = localStorage.getItem(FAV_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch(e) { return null; }
+    if (!raw) return [null, null];
+    const v = JSON.parse(raw);
+    if (Array.isArray(v)) return [v[0] || null, v[1] || null];
+    return [v, null];
+  } catch(e) { return [null, null]; }
 }
 
-function saveFav() {
-  const data = { market: selMarket, corp: selCorp, cat: selCat, item: selItem, kind: selKind };
-  try {
-    localStorage.setItem(FAV_KEY, JSON.stringify(data));
-    renderFavPath();
-    const btn = document.getElementById('fav-save-btn');
-    if (btn) {
-      const orig = btn.textContent;
-      btn.textContent = '✅ 저장됨!';
-      btn.style.background = 'linear-gradient(to bottom,#e8f5e9,#c8e6c9)';
-      setTimeout(() => { btn.textContent = orig; btn.style.background = ''; }, 1400);
-    }
-  } catch(e) { alert('즐겨찾기 저장 실패'); }
+function saveFavs(favs) {
+  try { localStorage.setItem(FAV_KEY, JSON.stringify(favs)); } catch(e) { alert('즐겨찾기 저장 실패'); }
 }
 
-function renderFavPath() {
-  const el = document.getElementById('fav-path');
-  if (!el) return;
-  const saved = loadFavData();
-  if (!saved) {
-    el.innerHTML = '<span class="fav-empty">저장된 즐겨찾기 없음 — 필터 설정 후 💾 저장하세요</span>';
-    return;
-  }
+function favLabel(f) {
   const parts = [
-    saved.market === 'all' || !saved.market ? '전국전체'
-      : (MARKETS.find(m=>m.code===saved.market)?.name || saved.market),
-    saved.corp  || '전체법인',
-    saved.cat   || '전체분류',
-    saved.item  || '전체품목',
-    saved.kind  || '전체품종',
-  ];
-  el.innerHTML = parts.map((p, i) =>
-    (i > 0 ? '<span class="fav-sep">›</span>' : '') +
-    `<span class="fav-seg" title="${escAttr(p)}">${escHtml(p)}</span>`
-  ).join('');
+    f.market === 'all' || !f.market ? '' : (MARKETS.find(m=>m.code===f.market)?.name || f.market),
+    f.corp, f.cat, f.item, f.kind,
+  ].filter(Boolean);
+  return parts.length ? parts.join('·') : '전체';
 }
 
-function favSearch() {
-  const saved = loadFavData();
-  if (!saved) {
-    alert('먼저 필터를 설정하고 💾 저장 버튼을 눌러 즐겨찾기를 저장하세요.');
-    return;
-  }
-  if (!favDate) { alert('날짜를 선택하세요 (◀ ▶ 또는 날짜 클릭)'); return; }
-  // 날짜·필터 적용
-  selDate   = favDate;
+function favSaveSlot(i) {
+  const favs = loadFavs();
+  favs[i] = { market: selMarket, corp: selCorp, cat: selCat, item: selItem, kind: selKind };
+  saveFavs(favs);
+  renderFavSlots();
+}
+
+function favDelSlot(i, e) {
+  e.stopPropagation();
+  const favs = loadFavs();
+  favs[i] = null;
+  saveFavs(favs);
+  renderFavSlots();
+}
+
+function favRun(i) {
+  const saved = loadFavs()[i];
+  if (!saved) return;
+  selDate   = favDate || selDate || new Date().toISOString().slice(0, 10);
   selMarket = saved.market || '110001';
   selCorp   = saved.corp   || '';
   selCat    = saved.cat    || '';
@@ -1187,6 +1206,19 @@ function favSearch() {
   updatePanel();
   renderSelectionTree();
   doSearch();
+}
+
+function renderFavSlots() {
+  const el = document.getElementById('fav-slots');
+  if (!el) return;
+  const favs = loadFavs();
+  el.innerHTML = favs.map((f, i) => f
+    ? `<span class="fav-slot2 filled" onclick="favRun(${i})" title="누르면 이 조건으로 검색합니다">
+        ⭐ <span class="fav-slot2-label">${escHtml(favLabel(f))}</span>
+        <button class="fav-slot2-x" onclick="favDelSlot(${i}, event)" title="삭제">✕</button>
+      </span>`
+    : `<button class="fav-slot2 empty" onclick="favSaveSlot(${i})" title="지금 설정된 조건을 저장합니다">☆ 현재 조건 저장</button>`
+  ).join('');
 }
 
 function updateSelTreeTop() {
