@@ -680,8 +680,16 @@ tbody td { padding: 6px 3px; text-align: center; vertical-align: middle; line-he
 .m-topbar { display: none; }
 .td-dt { display: inline-flex; flex-direction: column; line-height: 1.45; }
 @media (max-width: 760px) {
-  header, .date-bar, .fav-bar, .sort-bar, .sel-tree, .results-divider,
+  header, .date-bar, .sort-bar, .sel-tree, .results-divider,
   .today-cards, .total-bar, .cat-tab-bar { display: none !important; }
+  /* 모바일 상단 즐겨찾기 — 컴팩트 표시 (sticky 해제해서 스크롤 시 표 헤더에 자리 양보) */
+  .sticky-top { position: static; box-shadow: none; }
+  .fav-bar { padding: 6px 8px; gap: 4px 5px; }
+  .fav-row-label { width: auto; font-size: 10px; }
+  .fav-seg { max-width: 60px; padding: 3px 5px; font-size: 9.5px; }
+  .fav-save-btn, .fav-search-btn { padding: 4px 7px; font-size: 11px; }
+  .fav-btxt { display: none; }   /* 모바일은 아이콘만 — 경로 표시 공간 확보 */
+  .fav-empty { font-size: 9.5px; }
   /* 데스크톱 필터 버튼 숨김 — visibility:hidden은 쓰지 않는다!
      (숨긴 부모 안의 드롭다운은 화면에 보여도 실제 터치가 무시됨 — 삼성 등 모바일에서 선택 불가 버그)
      버튼을 0크기·무배경으로 만들고 내용물만 감춰서, 자식 드롭다운의 터치 판정을 살린다 */
@@ -1259,8 +1267,8 @@ function renderFavSlots() {
     row.innerHTML = `
       <span class="fav-row-label">⭐ 즐겨찾기${i + 1}</span>
       <div class="fav-path">${favPathHtml(f)}</div>
-      <button class="fav-save-btn" onclick="favSaveSlot(${i})" title="지금 설정된 조건을 이 줄에 저장">💾 저장</button>
-      <button class="fav-search-btn" onclick="favRun(${i})" ${f ? '' : 'disabled'} title="이 조건으로 검색">🔍 검색</button>
+      <button class="fav-save-btn" onclick="favSaveSlot(${i})" title="지금 설정된 조건을 이 줄에 저장">💾<span class="fav-btxt"> 저장</span></button>
+      <button class="fav-search-btn" onclick="favRun(${i})" ${f ? '' : 'disabled'} title="이 조건으로 검색">🔍<span class="fav-btxt"> 검색</span></button>
       ${f ? `<button class="fav-del-btn" onclick="favDelSlot(${i}, event)" title="삭제">✕</button>` : ''}`;
   });
 }
