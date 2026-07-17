@@ -1045,6 +1045,8 @@ function toggleTodayCards() {
 }
 
 function initTodayCards() {
+  // 모바일(≤760px)에서는 '오늘의 시세'를 표시하지 않으므로 시세 조회(API 8개)도 하지 않는다
+  if (window.innerWidth <= 760) return;
   const closed = (() => { try { return localStorage.getItem('tc_open') === '0'; } catch(e) { return false; } })();
   if (closed) {
     const box = document.getElementById('today-cards');
