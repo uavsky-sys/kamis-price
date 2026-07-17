@@ -543,21 +543,21 @@ tbody td { padding: 6px 3px; text-align: center; vertical-align: middle; line-he
 .fav-bar {
   background: linear-gradient(to bottom, #f0faf3, #e2f2e8);
   border-bottom: 2px solid #c2dfc9;
-  padding: 5px 10px;
-  display: flex; align-items: center; gap: 4px 6px;
+  padding: 7px 10px;
+  display: flex; align-items: center; gap: 5px 6px;
   flex-wrap: wrap;
-  min-height: 38px;
+  min-height: 44px;
 }
 .fav-row {
   flex-basis: 100%; min-width: 0;
   display: flex; align-items: center; gap: 5px;
 }
 .fav-row-label {
-  font-size: 10px; font-weight: 800; color: #155225;
-  white-space: nowrap; flex-shrink: 0; width: 52px;
+  font-size: 12px; font-weight: 800; color: #155225;
+  white-space: nowrap; flex-shrink: 0; width: 58px;
 }
 .fav-bar-label {
-  font-size: 10px; font-weight: 800; color: var(--green);
+  font-size: 12px; font-weight: 800; color: var(--green);
   white-space: nowrap; flex-shrink: 0;
 }
 .fav-date-nav {
@@ -573,8 +573,8 @@ tbody td { padding: 6px 3px; text-align: center; vertical-align: middle; line-he
 }
 .fav-date-arrow:active { transform: translateY(2px); box-shadow: 0 0 0 #8fbd9a; }
 .fav-date-chip {
-  font-size: 10px; font-weight: 800; color: #155225;
-  padding: 3px 8px; background: #fff;
+  font-size: 12px; font-weight: 800; color: #155225;
+  padding: 4px 9px; background: #fff;
   border: 1px solid #b8dcc2; border-radius: 10px;
   cursor: pointer; white-space: nowrap; user-select: none;
 }
@@ -585,17 +585,21 @@ tbody td { padding: 6px 3px; text-align: center; vertical-align: middle; line-he
 }
 .fav-seg {
   background: #fff; border: 1px solid #c2dfc9; border-radius: 10px;
-  padding: 3px 7px; font-size: 10px; font-weight: 700; color: #1b6b2f;
-  white-space: nowrap; max-width: 72px;
+  padding: 4px 8px; font-size: 12px; font-weight: 700; color: #1b6b2f;
+  white-space: nowrap; max-width: 86px;
   overflow: hidden; text-overflow: ellipsis; flex-shrink: 1;
 }
-.fav-sep { color: #8fbd9a; font-size: 10px; font-weight: 900; flex-shrink: 0; }
-.fav-empty { color: #aaa; font-size: 10px; font-style: italic; white-space: nowrap; }
+.fav-sep { color: #8fbd9a; font-size: 12px; font-weight: 900; flex-shrink: 0; }
+/* 빈 슬롯 — '없음' 신고가 아니라 기능 안내로 (첫 방문자가 즐겨찾기를 알아채는 유일한 지점) */
+.fav-empty {
+  color: #1b6b2f; font-size: 12px; font-weight: 700;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .fav-save-btn {
   background: linear-gradient(to bottom, #fffde7, #fff8c0);
   border: 1px solid #e0b800; border-radius: 12px;
-  color: #7a6000; font-size: 10px; font-weight: 800;
-  padding: 4px 10px; cursor: pointer; font-family: inherit;
+  color: #7a6000; font-size: 12px; font-weight: 800;
+  padding: 5px 11px; cursor: pointer; font-family: inherit;
   box-shadow: 0 2px 0 #c0a000; white-space: nowrap; flex-shrink: 0;
   transition: transform .08s, box-shadow .08s;
 }
@@ -603,8 +607,8 @@ tbody td { padding: 6px 3px; text-align: center; vertical-align: middle; line-he
 .fav-search-btn {
   background: linear-gradient(to bottom, #4caf50, #1b6b2f);
   border: none; border-radius: 12px;
-  color: #fff; font-size: 10px; font-weight: 800;
-  padding: 4px 12px; cursor: pointer; font-family: inherit;
+  color: #fff; font-size: 12px; font-weight: 800;
+  padding: 5px 13px; cursor: pointer; font-family: inherit;
   box-shadow: 0 2px 0 #0d4020, 0 3px 5px rgba(0,0,0,0.15);
   white-space: nowrap; flex-shrink: 0;
   transition: transform .08s, box-shadow .08s;
@@ -667,12 +671,12 @@ tbody td { padding: 6px 3px; text-align: center; vertical-align: middle; line-he
   .total-bar, .cat-tab-bar { display: none !important; }
   /* 모바일 상단 즐겨찾기 — 컴팩트 표시 (sticky 해제해서 스크롤 시 표 헤더에 자리 양보) */
   .sticky-top { position: static; box-shadow: none; }
-  .fav-bar { padding: 6px 8px; gap: 4px 5px; }
-  .fav-row-label { width: auto; font-size: 10px; }
-  .fav-seg { max-width: 60px; padding: 3px 5px; font-size: 9.5px; }
-  .fav-save-btn, .fav-search-btn { padding: 4px 7px; font-size: 11px; }
+  .fav-bar { padding: 7px 8px; gap: 5px; }
+  .fav-row-label { width: auto; font-size: 11.5px; }
+  .fav-seg { max-width: 72px; padding: 4px 6px; font-size: 11.5px; }
+  .fav-save-btn, .fav-search-btn { padding: 5px 9px; font-size: 12px; }
   .fav-btxt { display: none; }   /* 모바일은 아이콘만 — 경로 표시 공간 확보 */
-  .fav-empty { font-size: 9.5px; }
+  .fav-empty { font-size: 11.5px; white-space: normal; line-height: 1.4; }
   /* 데스크톱 필터 버튼 숨김 — visibility:hidden은 쓰지 않는다!
      (숨긴 부모 안의 드롭다운은 화면에 보여도 실제 터치가 무시됨 — 삼성 등 모바일에서 선택 불가 버그)
      버튼을 0크기·무배경으로 만들고 내용물만 감춰서, 자식 드롭다운의 터치 판정을 살린다 */
@@ -1046,7 +1050,7 @@ function saveFavs(favs) {
 
 // 저장된 조건을 기존처럼 카테고리 경로(시장›법인›분류›품목›품종)로 표시
 function favPathHtml(f) {
-  if (!f) return '<span class="fav-empty">저장된 즐겨찾기 없음 — 조건 설정 후 💾 저장</span>';
+  if (!f) return '<span class="fav-empty">매일 보는 품목을 저장해두세요 — 내일부터 한 번에 열립니다</span>';
   const parts = [
     f.market === 'all' || !f.market ? '전국전체'
       : (MARKETS.find(m=>m.code===f.market)?.name || f.market),
