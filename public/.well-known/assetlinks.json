@@ -5,7 +5,8 @@
       "namespace": "android_app",
       "package_name": "com.uavsky.nongsansise",
       "sha256_cert_fingerprints": [
-        "1C:5E:4F:2F:AA:D1:F4:14:19:2D:C7:EC:86:8F:71:A0:80:4A:46:90:56:3F:76:96:76:0A:C6:68:1A:67:83:5C"
+        "1C:5E:4F:2F:AA:D1:F4:14:19:2D:C7:EC:86:8F:71:A0:80:4A:46:90:56:3F:76:96:76:0A:C6:68:1A:67:83:5C",
+        "85:56:84:7B:19:AB:FF:29:38:80:80:58:5D:84:A7:D7:34:69:9D:62:9A:0B:58:42:24:AB:F4:6F:1B:70:CE:9C"
       ]
     }
   }
