@@ -1410,7 +1410,11 @@ async function loadGarakBackup(dateStr) {
     if (!r.ok) return null;
     const j = await r.json();
     if (!j || j.error) return null;
-    return parseResponse(j);
+    const rows = parseResponse(j);
+    // 가락 응답엔 대분류가 없다. 사용자가 고른 분류를 그대로 붙여(그 품목의 실제 분류이므로)
+    // 분류 필터를 통과시킨다. 분류 미선택이면 '-'로 둔다.
+    if (selCat) rows.forEach(d => { d.cat = selCat; });
+    return rows;
   } catch (e) { return null; }
 }
 
