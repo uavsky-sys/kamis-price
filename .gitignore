@@ -1,3 +1,10 @@
 cloudflare-worker.js
 server.py
 worker/
+
+# TWA/앱 서명키·패키지 — 공개 저장소에 절대 커밋 금지
+*.keystore
+*.aab
+signing-key-info.txt
+구글 플레이패키지/
+public/_pwa_extract/
