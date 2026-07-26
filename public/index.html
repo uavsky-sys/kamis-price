@@ -855,6 +855,7 @@ tbody td { padding: 6px 3px; text-align: center; vertical-align: middle; line-he
   <!-- 정렬 바 -->
   <div class="sort-bar">
     <button class="tree-toggle-bar-btn" id="tree-toggle-bar-btn" onclick="toggleSelTree()">🗂 분류선택 ▼ 펼치기</button>
+    <button class="tree-toggle-bar-btn" onclick="pfOpen()">📦 품목으로 찾기</button>
     <span style="flex:1"></span>
     <span class="sort-bar-label">정렬</span>
     <button id="sort-pd" onclick="setSort('price-desc')" class="active">가격↓</button>
@@ -881,7 +882,7 @@ tbody td { padding: 6px 3px; text-align: center; vertical-align: middle; line-he
 <div class="table-wrap">
 
   <!-- 모바일 전용 미니 헤더 -->
-  <div class="m-topbar"><span>🌾 농산물 오늘 시세</span><button onclick="doSearch()">🔄 새로고침</button></div>
+  <div class="m-topbar"><span>🌾 농산물 오늘 시세</span><button onclick="pfOpen()">📦 품목찾기</button><button onclick="doSearch()">🔄 새로고침</button></div>
 
   <div class="results-divider">📊 검색 결과</div>
 
@@ -933,6 +934,67 @@ tbody td { padding: 6px 3px; text-align: center; vertical-align: middle; line-he
   <button class="mb-chip" onclick="mbOpen('item')"><small>품목</small><span id="mb-item">전체</span></button>
   <button class="mb-chip" onclick="mbOpen('kind')"><small>품종</small><span id="mb-kind">전체</span></button>
   <button class="mb-search" onclick="doSearch()">검색</button>
+</div>
+
+<!-- ===== 품목으로 찾기 패널 ===== -->
+<style>
+.pf-overlay { display: none; position: fixed; inset: 0; z-index: 400;
+  background: var(--bg, #f6f8f6); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.pf-overlay.open { display: block; }
+.pf-head { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 10px;
+  background: linear-gradient(to bottom, #2d8a4a, #1b6b2f); color: #fff;
+  padding: 12px 14px; font-size: 16px; font-weight: 800; }
+.pf-head .pf-close { margin-left: auto; background: rgba(255,255,255,.18); color: #fff;
+  border: 0; border-radius: 999px; width: 32px; height: 32px; font-size: 16px;
+  cursor: pointer; font-family: inherit; }
+.pf-body { max-width: 720px; margin: 0 auto; padding: 14px 12px 60px; }
+.pf-search { display: flex; gap: 8px; }
+.pf-search input { flex: 1; min-width: 0; border: 1.5px solid #bcd4bc; border-radius: 10px;
+  padding: 11px 12px; font-size: 15px; font-family: inherit; background: #fff; }
+.pf-search input:focus { outline: none; border-color: var(--green, #1b6b2f); }
+.pf-search button { background: linear-gradient(to bottom, #4caf50, #1b6b2f); color: #fff;
+  border: 0; border-radius: 10px; padding: 0 20px; font-size: 15px; font-weight: 800;
+  cursor: pointer; font-family: inherit; }
+.pf-sec-title { font-size: 12.5px; font-weight: 700; color: #557; margin: 14px 2px 7px; }
+.pf-pop { display: flex; flex-wrap: wrap; gap: 6px; }
+.pf-chip { background: #fff; border: 1px solid #cfdccf; border-radius: 999px;
+  padding: 7px 12px; font-size: 13px; cursor: pointer; font-family: inherit; color: #234; }
+.pf-chip:hover { border-color: var(--green, #1b6b2f); color: var(--green, #1b6b2f); }
+.pf-chip.on { background: var(--green, #1b6b2f); border-color: var(--green, #1b6b2f);
+  color: #fff; font-weight: 700; }
+.pf-chip .pf-cnt { color: #8aa; font-size: 11.5px; }
+.pf-chip.on .pf-cnt { color: #cfe8d5; }
+.pf-loading { text-align: center; padding: 36px 0; color: #667; font-size: 13.5px; }
+.pf-date-line { background: #e8f5ee; border-radius: 9px; padding: 9px 12px;
+  font-size: 13px; color: #1F5138; margin-top: 14px; }
+.pf-warn { background: #fff8e6; border: 1px solid #f0dfae; border-radius: 9px;
+  padding: 8px 12px; font-size: 12px; color: #6b5b1f; margin-top: 8px; }
+.pf-mkt-list { margin-top: 8px; }
+.pf-mkt-row { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+  background: #fff; border: 1px solid #dde6dd; border-radius: 10px; padding: 13px 14px;
+  margin-bottom: 7px; cursor: pointer; font-family: inherit; font-size: 15px; }
+.pf-mkt-row:hover { border-color: var(--green, #1b6b2f); background: #f4faf6; }
+.pf-mkt-row .pf-mname { font-weight: 800; color: #222; }
+.pf-mkt-row .pf-mregion { font-size: 11.5px; color: #889; }
+.pf-mkt-row .pf-mcnt { margin-left: auto; font-weight: 700; color: var(--green, #1b6b2f); font-size: 14px; }
+.pf-mkt-row .pf-arrow { color: #9ab; font-size: 13px; }
+.pf-none { text-align: center; color: #667; font-size: 13.5px; padding: 26px 8px; line-height: 1.7; }
+.pf-note { font-size: 11.5px; color: #99a; margin-top: 10px; text-align: center; }
+</style>
+<div class="pf-overlay" id="pf-overlay">
+  <div class="pf-head">📦 품목으로 찾기
+    <button class="pf-close" onclick="pfClose()" aria-label="닫기">✕</button>
+  </div>
+  <div class="pf-body">
+    <div class="pf-search">
+      <input id="pf-input" type="search" placeholder="품목명 입력 (예: 수박, 호박, 감자)"
+        onkeydown="if(event.key==='Enter')pfSearch()">
+      <button onclick="pfSearch()">찾기</button>
+    </div>
+    <div class="pf-sec-title">자주 찾는 품목</div>
+    <div class="pf-pop" id="pf-pop"></div>
+    <div id="pf-result"></div>
+  </div>
 </div>
 
 <input type="date" id="date-input-hidden" onchange="selectDate(this.value)" />
@@ -1248,6 +1310,13 @@ document.addEventListener('DOMContentLoaded', () => {
   setInterval(updateHeaderClock, 1000);
   // 결과는 검색 버튼을 눌러야 표시 — 대신 기본 조건의 선택 목록·건수는 미리 불러온다
   refreshOptions();
+  // 딥링크: ?pf=품목명 으로 접속하면 품목으로 찾기가 바로 열린다 (공유·외부 링크용)
+  const pfQ = new URLSearchParams(location.search).get('pf');
+  if (pfQ) {
+    pfOpen();
+    document.getElementById('pf-input').value = pfQ;
+    pfSearch();
+  }
 });
 window.addEventListener('resize', () => { updateSelTreeTop(); fitSelTree(); });
 
@@ -1999,6 +2068,156 @@ function showSearchPrompt() {
 }
 
 function selectDate(val) { if (!val) return; selDate=val; userDate=val; refreshOptions(); }
+
+// ===== 품목으로 찾기 =====
+// 시장을 먼저 고르지 않고, 품목을 고르면 "어느 시장에 몇 건 있는지"를 보여준다.
+// 전국 조회 1회(품목 서버필터)로 만들며, 0건 시장은 아예 표시하지 않는다.
+let pfRows = [], pfItem = '', pfKind = '', pfDate = '', pfTotal = 0, pfSeq = 0, pfKindMore = false;
+
+function pfOpen() {
+  document.getElementById('pf-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';   // 뒤 화면 스크롤 잠금
+  const pop = document.getElementById('pf-pop');
+  if (!pop.childElementCount) {
+    pop.innerHTML = FIXED_ITEMS.map(it =>
+      `<button class="pf-chip" onclick="pfPick('${escAttr(it)}')">${escHtml(it)}</button>`).join('');
+  }
+}
+
+function pfClose() {
+  document.getElementById('pf-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function pfPick(item) {
+  document.getElementById('pf-input').value = item;
+  pfSearch();
+}
+
+async function pfSearch() {
+  const q = document.getElementById('pf-input').value.trim();
+  const res = document.getElementById('pf-result');
+  if (!q) {
+    res.innerHTML = '<div class="pf-none">품목명을 입력하거나 위에서 골라주세요</div>';
+    return;
+  }
+  const seq = ++pfSeq;
+  pfItem = q; pfKind = ''; pfKindMore = false;
+  res.innerHTML = '<div class="pf-loading"><div class="spinner"></div>전국 33개 시장에서 찾는 중…</div>';
+
+  // 사용자가 고른 날짜(없으면 오늘)부터 최대 3일 거슬러 조회 (주말·휴장 대비)
+  const base = userDate || selDate || new Date().toISOString().slice(0, 10);
+  let rows = [], total = 0, used = base;
+  for (let back = 0; back <= 3; back++) {
+    const d = new Date(base + 'T12:00:00');
+    d.setDate(d.getDate() - back);
+    used = d.toISOString().slice(0, 10);
+    try {
+      const r = await fetchWithTimeout(
+        `${WORKER_URL}/?saledate=${used.replace(/-/g, '')}&item=${encodeURIComponent(q)}`, 30000);
+      if (!r.ok) continue;
+      const j = await r.json();
+      if (!j || j.error) continue;
+      const parsed = parseResponse(j);
+      if (parsed.length) {
+        rows = parsed;
+        total = parseInt(j?.response?.body?.totalCount) || parsed.length;
+        break;
+      }
+    } catch (e) { /* 다음 날짜 시도 */ }
+    if (seq !== pfSeq) return;
+  }
+  if (seq !== pfSeq) return;
+  pfRows = rows; pfTotal = total; pfDate = used;
+  renderPfResult();
+}
+
+// 이름이 품종(애호박 등)일 때 상위 품목(호박)을 제안
+function pfSuggests(q) {
+  return FIXED_ITEMS.filter(it => it !== q && (q.includes(it) || it.includes(q)));
+}
+
+function renderPfResult() {
+  const res = document.getElementById('pf-result');
+  if (!pfRows.length) {
+    const sug = pfSuggests(pfItem);
+    res.innerHTML = `<div class="pf-none">
+        최근 3일 내 <b>${escHtml(pfItem)}</b> 경매 기록이 없습니다.<br>
+        찾는 이름이 <b>품종</b>일 수 있어요 — 상위 품목으로 찾은 뒤 품종을 고르세요.
+        ${sug.length ? '<div style="margin-top:10px">' + sug.map(s =>
+          `<button class="pf-chip" onclick="pfPick('${escAttr(s)}')">👉 ${escHtml(s)}(으)로 찾기</button>`).join(' ') + '</div>' : ''}
+      </div>`;
+    return;
+  }
+
+  const dd = new Date(pfDate + 'T00:00:00');
+  const yoil = ['일','월','화','수','목','금','토'][dd.getDay()];
+  const trunc = pfRows.length < pfTotal;
+
+  // 품종 칩 (정규화 kindN, 건수순) — 상위 12개만, 나머지는 '더보기'로 접음
+  const KIND_SHOW = 12;
+  const kindCnt = {};
+  pfRows.forEach(d => { kindCnt[d.kindN] = (kindCnt[d.kindN] || 0) + 1; });
+  let kinds = Object.entries(kindCnt).sort((a, b) => b[1] - a[1]);
+  // 선택된 품종이 12위 밖이어도 칩이 보이도록 앞으로 당김
+  const selIdx = kinds.findIndex(([k]) => k === pfKind);
+  if (selIdx >= KIND_SHOW) kinds = [kinds[selIdx], ...kinds.filter((_, i) => i !== selIdx)];
+  const hidden = Math.max(0, kinds.length - KIND_SHOW);
+  const shown = pfKindMore ? kinds : kinds.slice(0, KIND_SHOW);
+  const kindChips =
+    `<button class="pf-chip ${!pfKind ? 'on' : ''}" onclick="pfSetKind('')">전체 <span class="pf-cnt">(${pfRows.length.toLocaleString()})</span></button>` +
+    shown.map(([k, n]) =>
+      `<button class="pf-chip ${pfKind === k ? 'on' : ''}" onclick="pfSetKind('${escAttr(k)}')">${escHtml(k)} <span class="pf-cnt">(${n.toLocaleString()})</span></button>`).join('') +
+    (hidden ? `<button class="pf-chip" onclick="pfKindMore=${pfKindMore ? 'false' : 'true'};renderPfResult()">${pfKindMore ? '▲ 접기' : `+ ${hidden}개 더보기`}</button>` : '');
+
+  // 시장별 건수 (선택 품종 반영, 건수순 — 0건 시장은 표시하지 않음)
+  const use = pfKind ? pfRows.filter(d => d.kindN === pfKind) : pfRows;
+  const mktCnt = {};
+  use.forEach(d => { mktCnt[d.market] = (mktCnt[d.market] || 0) + 1; });
+  const mkts = Object.entries(mktCnt).sort((a, b) => b[1] - a[1]);
+  const mktRows = mkts.map(([m, n]) => {
+    const info = MARKETS.find(x => x.name.replace(/\s/g, '') === m);
+    return `<button class="pf-mkt-row" onclick="pfGo('${escAttr(m)}')">
+        <span class="pf-mname">${escHtml(info ? info.name : m)}</span>
+        <span class="pf-mregion">${info ? escHtml(info.region) : ''}</span>
+        <span class="pf-mcnt">${n.toLocaleString()}건</span>
+        <span class="pf-arrow">▶</span>
+      </button>`;
+  }).join('');
+
+  res.innerHTML = `
+    <div class="pf-date-line">📅 <b>${dd.getMonth() + 1}/${dd.getDate()}(${yoil})</b> 기준 ·
+      <b>${escHtml(pfItem)}</b> 전국 <b>${pfTotal.toLocaleString()}건</b></div>
+    ${trunc ? `<div class="pf-warn">⚠ 건수가 많아 ${pfRows.length.toLocaleString()}건 기준으로 집계했습니다 — 품종을 고르면 더 정확해집니다</div>` : ''}
+    <div class="pf-sec-title">🌿 품종 (건수순)</div>
+    <div class="pf-pop">${kindChips}</div>
+    <div class="pf-sec-title">🏬 시장별 건수 — 누르면 그 시장 시세가 열립니다</div>
+    <div class="pf-mkt-list">${mktRows}</div>
+    <div class="pf-note">경매 기록이 있는 시장만 표시됩니다 (${mkts.length}곳)</div>`;
+}
+
+function pfSetKind(k) { pfKind = k; renderPfResult(); }
+
+// 시장 선택 → 그 시장+품목(+품종)으로 기존 검색 화면에 합류
+function pfGo(marketDataName) {
+  const m = MARKETS.find(x => x.name.replace(/\s/g, '') === marketDataName);
+  if (!m) return;
+  const row = pfRows.find(d => d.market === marketDataName && (!pfKind || d.kindN === pfKind));
+  selMarket = m.code;
+  selCorp   = '';
+  selCat    = (row && row.cat && row.cat !== '-') ? row.cat : '';
+  autoCat   = false;
+  selItem   = pfItem;
+  selKind   = pfKind || '';
+  selDate   = pfDate;
+  userDate  = pfDate;
+  document.getElementById('date-input-hidden').value = selDate;
+  pfClose();
+  updatePanel();
+  renderSelectionTree();
+  doSearch();
+  window.scrollTo({ top: 0 });
+}
 
 // ===== XSS 방어 유틸 =====
 function escHtml(str) {
