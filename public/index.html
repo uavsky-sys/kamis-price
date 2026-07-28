@@ -351,6 +351,17 @@ header {
   z-index: 99;
   box-shadow: 0 4px 12px rgba(0,0,0,0.12);
 }
+/* 시세 추이 카드 (데이터농사 축적 데이터) */
+.trend-card {
+  margin: 8px 10px 2px; padding: 10px 12px 6px;
+  background: #f4faf4; border: 1px solid #cfe3cf; border-radius: 10px;
+}
+.trend-title { font-size: 12px; font-weight: 800; color: #155225; }
+.trend-sum { font-size: 12px; color: #333; margin-top: 2px; }
+.trend-sum b.up { color: #c62828; }
+.trend-sum b.down { color: #1565c0; }
+.trend-card svg { width: 100%; max-width: 480px; height: auto; display: block; margin: 4px auto 0; }
+.trend-src { font-size: 9.5px; color: #9aa89a; text-align: right; margin-top: 2px; }
 /* 결과 구분 헤더 */
 .results-divider {
   background: linear-gradient(135deg, #155225 0%, #2d8a4a 100%);
@@ -885,6 +896,7 @@ tbody td { padding: 6px 3px; text-align: center; vertical-align: middle; line-he
   <div class="m-topbar"><span>🌾 농산물 가격</span><button onclick="pfOpen()">📦 품목찾기</button><button onclick="doSearch()">🔄 새로고침</button></div>
 
   <div class="results-divider">📊 검색 결과</div>
+  <div id="main-trend"></div>
 
   <div class="status-bar">
     <span id="result-info">조건을 선택하고 검색하세요</span>
@@ -1001,6 +1013,67 @@ tbody td { padding: 6px 3px; text-align: center; vertical-align: middle; line-he
 
 <script>
 const WORKER_URL = 'https://mafra-proxy.uavsky.workers.dev';
+
+// ── 시세 추이 그래프 (데이터농사 축적 데이터, /trend) ─────────
+// 수집 품목만 그래프가 있고, 없는 품목은 조용히 숨긴다.
+const trendCache = {};   // 품목 → days[] 또는 null(데이터 없음)
+async function loadTrend(item, boxId) {
+  const box = document.getElementById(boxId);
+  if (!box) return;
+  if (!item) { box.innerHTML = ''; return; }
+  if (item in trendCache) { renderTrend(item, boxId); return; }
+  box.innerHTML = '';
+  try {
+    const r = await fetch(`${WORKER_URL}/trend?item=${encodeURIComponent(item)}`).then(x => x.json());
+    trendCache[item] = (r.ok && r.days && r.days.length >= 5) ? r.days : null;
+  } catch { trendCache[item] = null; }
+  renderTrend(item, boxId);
+}
+function renderTrend(item, boxId) {
+  const box = document.getElementById(boxId);
+  if (!box) return;
+  const days = trendCache[item];
+  if (!days) { box.innerHTML = ''; return; }
+  const last = days[days.length - 1];
+  const prev = days[Math.max(0, days.length - 6)]; // 약 1주 전(영업일 기준)
+  const pct = prev.avg ? (last.avg - prev.avg) / prev.avg * 100 : 0;
+  const dir = pct >= 0.5 ? 'up' : pct <= -0.5 ? 'down' : '';
+  const arrow = dir === 'up' ? '▲' : dir === 'down' ? '▼' : '—';
+  const [, lm, ldd] = last.d.split('-');
+  box.innerHTML = `<div class="trend-card">
+    <div class="trend-title">📈 ${escHtml(item)} — 최근 한 달 전국 평균 (kg당)</div>
+    <div class="trend-sum">${+lm}/${+ldd} <b>${last.avg.toLocaleString()}원</b> ·
+      1주 전보다 <b class="${dir}">${arrow} ${Math.abs(pct).toFixed(1)}%</b></div>
+    ${trendSvg(days)}
+    <div class="trend-src">전국 도매시장 경매 자체 집계 · 매일 저녁 갱신</div>
+  </div>`;
+}
+function trendSvg(days) {
+  const W = 320, H = 86, L = 34, R = 8, T = 8, B = 14;
+  const vals = days.map(x => x.avg);
+  const lo = Math.min(...vals), hi = Math.max(...vals);
+  const pad = Math.max(1, (hi - lo) * 0.08);
+  const yLo = lo - pad, yHi = hi + pad;
+  const x = i => L + i / (days.length - 1) * (W - L - R);
+  const y = v => T + (1 - (v - yLo) / (yHi - yLo)) * (H - T - B);
+  const pts = days.map((d, i) => `${x(i).toFixed(1)},${y(d.avg).toFixed(1)}`).join(' ');
+  const area = `M${x(0).toFixed(1)},${y(days[0].avg).toFixed(1)} L${pts.split(' ').join(' L')} L${x(days.length - 1).toFixed(1)},${H - B} L${x(0).toFixed(1)},${H - B} Z`;
+  const won = v => v >= 10000 ? (v / 10000).toFixed(1).replace(/\.0$/, '') + '만' : v.toLocaleString();
+  const [, fm, fd] = days[0].d.split('-');
+  const [, tm, td] = days[days.length - 1].d.split('-');
+  const li = days.length - 1;
+  return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" aria-label="가격 추이 그래프">
+    <line x1="${L}" y1="${y(hi).toFixed(1)}" x2="${W - R}" y2="${y(hi).toFixed(1)}" stroke="#e0eae0"/>
+    <line x1="${L}" y1="${y(lo).toFixed(1)}" x2="${W - R}" y2="${y(lo).toFixed(1)}" stroke="#e0eae0"/>
+    <text x="${L - 3}" y="${(y(hi) + 3).toFixed(1)}" font-size="8.5" fill="#7c8b7c" text-anchor="end">${won(hi)}</text>
+    <text x="${L - 3}" y="${(y(lo) + 3).toFixed(1)}" font-size="8.5" fill="#7c8b7c" text-anchor="end">${won(lo)}</text>
+    <path d="${area}" fill="#1b6b2f" opacity="0.08"/>
+    <polyline points="${pts}" fill="none" stroke="#1b6b2f" stroke-width="2" stroke-linejoin="round"/>
+    <circle cx="${x(li).toFixed(1)}" cy="${y(days[li].avg).toFixed(1)}" r="3" fill="#c62828"/>
+    <text x="${L}" y="${H - 3}" font-size="8.5" fill="#7c8b7c">${+fm}/${+fd}</text>
+    <text x="${W - R}" y="${H - 3}" font-size="8.5" fill="#7c8b7c" text-anchor="end">${+tm}/${+td}</text>
+  </svg>`;
+}
 
 
 
@@ -1519,6 +1592,7 @@ async function doSearch() {
     new Date().toLocaleTimeString('ko-KR', {hour:'2-digit',minute:'2-digit'}) + ' 기준';
   updatePanel();
   searchReady(false);
+  loadTrend(selItem, 'main-trend'); // 수집 품목이면 한 달 추이 그래프 표시
   // 백업(가락 직접 조회) 결과일 때 안내
   const _ri = document.getElementById('result-info');
   if (backupMode) {
@@ -2051,6 +2125,7 @@ function autoFillCat() {
 function showSearchPrompt() {
   allData = [];
   autoFillCat();
+  loadTrend('', 'main-trend'); // 조건 변경 중엔 이전 그래프 숨김
   const n = rawData.length ? filterBase('kind').filter(d => !selKind || d.kindN === selKind).length : 0;
   document.getElementById('table-body').innerHTML =
     `<tr class="empty-row"><td colspan="6">🔍 ${n
@@ -2188,12 +2263,14 @@ function renderPfResult() {
   res.innerHTML = `
     <div class="pf-date-line">📅 <b>${dd.getMonth() + 1}/${dd.getDate()}(${yoil})</b> 기준 ·
       <b>${escHtml(pfItem)}</b> 전국 <b>${pfTotal.toLocaleString()}건</b></div>
+    <div id="pf-trend"></div>
     ${trunc ? `<div class="pf-warn">⚠ 건수가 많아 ${pfRows.length.toLocaleString()}건 기준으로 집계했습니다 — 품종을 고르면 더 정확해집니다</div>` : ''}
     <div class="pf-sec-title">🌿 품종 (건수순)</div>
     <div class="pf-pop">${kindChips}</div>
     <div class="pf-sec-title">🏬 시장별 건수 — 누르면 그 시장 시세가 열립니다</div>
     <div class="pf-mkt-list">${mktRows}</div>
     <div class="pf-note">경매 기록이 있는 시장만 표시됩니다 (${mkts.length}곳)</div>`;
+  loadTrend(pfItem, 'pf-trend'); // 수집 품목이면 한 달 추이 그래프
 }
 
 function pfSetKind(k) { pfKind = k; renderPfResult(); }
