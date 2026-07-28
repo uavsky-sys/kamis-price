@@ -2169,6 +2169,34 @@ function pfPick(item) {
   pfSearch();
 }
 
+// ===== 안드로이드 앱 뒤로가기 =====
+// 설치형 앱(TWA)은 한 페이지라 히스토리가 없어 뒤로가기가 곧장 앱 종료였다.
+// 해결: 히스토리에 가드 한 칸을 유지 — 뒤로가기 시 ①열린 창(품목찾기·필터시트)이 있으면
+// 그것부터 닫고 ②없으면 "한 번 더 누르면 종료" 안내, 2초 안에 또 누르면 진짜 종료.
+// 일반 브라우저에서는 작동하지 않음(웹 표준 뒤로가기 유지).
+(function () {
+  const isApp = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+  if (!isApp || !window.history || !window.history.pushState) return;
+
+  function closeTopLayer() {
+    const pf = document.getElementById('pf-overlay');
+    if (pf && pf.classList.contains('open')) { pfClose(); return true; }
+    if (curFilter) { closeAllDropdowns(); return true; }
+    return false;
+  }
+
+  let armedTs = 0;
+  history.replaceState({ app: 1 }, '');
+  history.pushState({ guard: 1 }, '');
+  window.addEventListener('popstate', () => {
+    if (closeTopLayer()) { history.pushState({ guard: 1 }, ''); return; }
+    if (Date.now() - armedTs < 2000) { history.back(); return; } // 두 번째 — 진짜 종료
+    armedTs = Date.now();
+    showToast('한 번 더 누르면 앱이 종료됩니다');
+    history.pushState({ guard: 1 }, '');
+  });
+})();
+
 async function pfSearch() {
   const q = document.getElementById('pf-input').value.trim();
   const res = document.getElementById('pf-result');
