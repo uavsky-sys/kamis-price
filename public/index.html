@@ -362,6 +362,8 @@ header {
 .trend-sum b.down { color: #1565c0; }
 .trend-card svg { width: 100%; max-width: 480px; height: auto; display: block; margin: 4px auto 0; }
 .trend-src { font-size: 9.5px; color: #9aa89a; text-align: right; margin-top: 2px; }
+.trend-band-sum { color: #4a6b4a; }
+.trend-band-key { color: #1b6b2f; opacity: 0.25; }
 /* 결과 구분 헤더 */
 .results-divider {
   background: linear-gradient(135deg, #155225 0%, #2d8a4a 100%);
@@ -1040,34 +1042,49 @@ function renderTrend(item, boxId) {
   const dir = pct >= 0.5 ? 'up' : pct <= -0.5 ? 'down' : '';
   const arrow = dir === 'up' ? '▲' : dir === 'down' ? '▼' : '—';
   const [, lm, ldd] = last.d.split('-');
+  const hasBand = last.p10 && last.p90;
   box.innerHTML = `<div class="trend-card">
     <div class="trend-title">📈 ${escHtml(item)} — 최근 한 달 전국 평균 (kg당)</div>
     <div class="trend-sum">${+lm}/${+ldd} <b>${last.avg.toLocaleString()}원</b> ·
-      1주 전보다 <b class="${dir}">${arrow} ${Math.abs(pct).toFixed(1)}%</b></div>
+      1주 전보다 <b class="${dir}">${arrow} ${Math.abs(pct).toFixed(1)}%</b>${
+      hasBand ? `<span class="trend-band-sum"> · 가격대 ${last.p10.toLocaleString()}~${last.p90.toLocaleString()}원</span>` : ''}</div>
     ${trendSvg(days)}
-    <div class="trend-src">전국 도매시장 경매 자체 집계 · 매일 저녁 갱신</div>
+    <div class="trend-src">${hasBand ? '<span class="trend-band-key">■</span> 전국 가격대(하위10%~상위10% 물량 기준) · ' : ''}전국 도매시장 경매 자체 집계 · 매일 저녁 갱신</div>
   </div>`;
 }
 function trendSvg(days) {
-  const W = 320, H = 86, L = 34, R = 8, T = 8, B = 14;
-  const vals = days.map(x => x.avg);
+  const W = 320, H = 96, L = 34, R = 8, T = 8, B = 14;
+  // 가격대 띠(p10~p90)가 있으면 y축 범위에 포함 — 띠가 화면 밖으로 잘리지 않게
+  const banded = days.filter(d => d.p10 && d.p90);
+  const hasBand = banded.length >= 5;
+  const vals = days.map(x => x.avg)
+    .concat(hasBand ? banded.map(d => d.p10) : [], hasBand ? banded.map(d => d.p90) : []);
   const lo = Math.min(...vals), hi = Math.max(...vals);
   const pad = Math.max(1, (hi - lo) * 0.08);
   const yLo = lo - pad, yHi = hi + pad;
   const x = i => L + i / (days.length - 1) * (W - L - R);
   const y = v => T + (1 - (v - yLo) / (yHi - yLo)) * (H - T - B);
   const pts = days.map((d, i) => `${x(i).toFixed(1)},${y(d.avg).toFixed(1)}`).join(' ');
-  const area = `M${x(0).toFixed(1)},${y(days[0].avg).toFixed(1)} L${pts.split(' ').join(' L')} L${x(days.length - 1).toFixed(1)},${H - B} L${x(0).toFixed(1)},${H - B} Z`;
+  // 띠: 위쪽(p90) 왼→오 + 아래쪽(p10) 오→왼을 이어 닫은 다각형 (띠 없는 날은 건너뜀)
+  let bandPath = '';
+  if (hasBand) {
+    const top = [], bot = [];
+    days.forEach((d, i) => {
+      if (d.p10 && d.p90) { top.push(`${x(i).toFixed(1)},${y(d.p90).toFixed(1)}`); bot.push(`${x(i).toFixed(1)},${y(d.p10).toFixed(1)}`); }
+    });
+    bandPath = `M${top.join(' L')} L${bot.reverse().join(' L')} Z`;
+  }
   const won = v => v >= 10000 ? (v / 10000).toFixed(1).replace(/\.0$/, '') + '만' : v.toLocaleString();
   const [, fm, fd] = days[0].d.split('-');
   const [, tm, td] = days[days.length - 1].d.split('-');
   const li = days.length - 1;
-  return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" aria-label="가격 추이 그래프">
-    <line x1="${L}" y1="${y(hi).toFixed(1)}" x2="${W - R}" y2="${y(hi).toFixed(1)}" stroke="#e0eae0"/>
-    <line x1="${L}" y1="${y(lo).toFixed(1)}" x2="${W - R}" y2="${y(lo).toFixed(1)}" stroke="#e0eae0"/>
-    <text x="${L - 3}" y="${(y(hi) + 3).toFixed(1)}" font-size="8.5" fill="#7c8b7c" text-anchor="end">${won(hi)}</text>
-    <text x="${L - 3}" y="${(y(lo) + 3).toFixed(1)}" font-size="8.5" fill="#7c8b7c" text-anchor="end">${won(lo)}</text>
-    <path d="${area}" fill="#1b6b2f" opacity="0.08"/>
+  const avgHi = Math.max(...days.map(x => x.avg)), avgLo = Math.min(...days.map(x => x.avg));
+  return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" aria-label="가격 추이 그래프 (띠는 전국 가격대)">
+    <line x1="${L}" y1="${y(avgHi).toFixed(1)}" x2="${W - R}" y2="${y(avgHi).toFixed(1)}" stroke="#e0eae0"/>
+    <line x1="${L}" y1="${y(avgLo).toFixed(1)}" x2="${W - R}" y2="${y(avgLo).toFixed(1)}" stroke="#e0eae0"/>
+    <text x="${L - 3}" y="${(y(avgHi) + 3).toFixed(1)}" font-size="8.5" fill="#7c8b7c" text-anchor="end">${won(avgHi)}</text>
+    <text x="${L - 3}" y="${(y(avgLo) + 3).toFixed(1)}" font-size="8.5" fill="#7c8b7c" text-anchor="end">${won(avgLo)}</text>
+    ${bandPath ? `<path d="${bandPath}" fill="#1b6b2f" opacity="0.10"/>` : `<path d="M${x(0).toFixed(1)},${y(days[0].avg).toFixed(1)} L${pts.split(' ').join(' L')} L${x(days.length - 1).toFixed(1)},${H - B} L${x(0).toFixed(1)},${H - B} Z" fill="#1b6b2f" opacity="0.08"/>`}
     <polyline points="${pts}" fill="none" stroke="#1b6b2f" stroke-width="2" stroke-linejoin="round"/>
     <circle cx="${x(li).toFixed(1)}" cy="${y(days[li].avg).toFixed(1)}" r="3" fill="#c62828"/>
     <text x="${L}" y="${H - 3}" font-size="8.5" fill="#7c8b7c">${+fm}/${+fd}</text>
