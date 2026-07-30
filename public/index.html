@@ -229,7 +229,7 @@ header {
 
 /* 3D 검색 버튼 */
 .search-btn {
-  flex-shrink: 0; width: 46px;
+  flex-shrink: 0; width: 68px;
   background: linear-gradient(155deg, #ef5350, #b71c1c);
   border: none; border-radius: var(--radius);
   color: #fff; font-size: 13px; font-weight: 800;
@@ -861,7 +861,7 @@ tbody td { padding: 6px 3px; text-align: center; vertical-align: middle; line-he
         <span class="fb-value" id="fb-kind">전체</span>
         <div class="filter-dropdown right" id="fd-kind" onclick="event.stopPropagation()"></div>
       </div>
-      <button class="search-btn" onclick="doSearch()">검색</button>
+      <button class="search-btn" onclick="doSearch()">품목검색</button>
     </div>
   </div>
 
@@ -901,7 +901,7 @@ tbody td { padding: 6px 3px; text-align: center; vertical-align: middle; line-he
   <div id="main-trend"></div>
 
   <div class="status-bar">
-    <span id="result-info">조건을 선택하고 검색하세요</span>
+    <span id="result-info">조건을 선택하고 품목검색을 누르세요</span>
     <span id="last-update"></span>
   </div>
   <table>
@@ -914,7 +914,7 @@ tbody td { padding: 6px 3px; text-align: center; vertical-align: middle; line-he
       </tr>
     </thead>
     <tbody id="table-body">
-      <tr class="empty-row"><td colspan="6">조건을 선택하고 검색하세요</td></tr>
+      <tr class="empty-row"><td colspan="6">조건을 선택하고 품목검색을 누르세요</td></tr>
     </tbody>
   </table>
   <div class="pagination" id="pagination"></div>
@@ -947,7 +947,7 @@ tbody td { padding: 6px 3px; text-align: center; vertical-align: middle; line-he
   <button class="mb-chip" onclick="mbOpen('cat')"><small>분류</small><span id="mb-cat">전체</span></button>
   <button class="mb-chip" onclick="mbOpen('item')"><small>품목</small><span id="mb-item">전체</span></button>
   <button class="mb-chip" onclick="mbOpen('kind')"><small>품종</small><span id="mb-kind">전체</span></button>
-  <button class="mb-search" onclick="doSearch()">검색</button>
+  <button class="mb-search" onclick="doSearch()">품목검색</button>
 </div>
 
 <!-- ===== 품목으로 찾기 패널 ===== -->
@@ -1630,7 +1630,7 @@ async function refreshOptions() {
   const r = await loadData();
   if (r.stale) return;
   if (r.error) {
-    document.getElementById('result-info').textContent = '목록 갱신 실패 — 검색을 눌러 다시 시도해 주세요';
+    document.getElementById('result-info').textContent = '목록 갱신 실패 — 품목검색을 눌러 다시 시도해 주세요';
     return;
   }
   showSearchPrompt();  // 새 데이터 기준으로 목록·건수·예상건수 다시 그림
@@ -2146,14 +2146,14 @@ function showSearchPrompt() {
   const n = rawData.length ? filterBase('kind').filter(d => !selKind || d.kindN === selKind).length : 0;
   document.getElementById('table-body').innerHTML =
     `<tr class="empty-row"><td colspan="6">🔍 ${n
-      ? `<strong>검색</strong>을 누르면 <strong>${n.toLocaleString()}건</strong>이 표시됩니다`
-      : '조건 설정 후 <strong>검색</strong>을 누르면 결과가 표시됩니다'}</td></tr>`;
+      ? `<strong>품목검색</strong>을 누르면 <strong>${n.toLocaleString()}건</strong>이 표시됩니다`
+      : '조건 설정 후 <strong>품목검색</strong>을 누르면 결과가 표시됩니다'}</td></tr>`;
   document.getElementById('pagination').innerHTML = '';
   document.getElementById('cat-tab-bar').innerHTML = '';
   const tb = document.getElementById('total-bar');
   if (tb) { tb.style.display = 'none'; tb.innerHTML = ''; }
   document.getElementById('result-info').textContent =
-    n ? `검색 대기 — ${n.toLocaleString()}건 준비됨` : '검색을 누르면 결과가 표시됩니다';
+    n ? `검색 대기 — ${n.toLocaleString()}건 준비됨` : '품목검색을 누르면 결과가 표시됩니다';
   searchReady(true);
   renderSelectionTree();
   updatePanel();
