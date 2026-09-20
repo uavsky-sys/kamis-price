@@ -1016,6 +1016,20 @@ tbody td { padding: 6px 3px; text-align: center; vertical-align: middle; line-he
 <script>
 const WORKER_URL = 'https://mafra-proxy.uavsky.workers.dev';
 
+// ── 날짜는 무조건 한국(KST) 기준 ─────────────────────────────
+// 🚨 toISOString() 은 세계표준시(UTC)라 한국 새벽 0~9시에 "하루 전" 날짜가 나온다.
+//    (예: 한국 9/21 새벽 5시 → toISOString() 은 9/20)
+//    경매는 한국 시장에서만 열리므로 기기 시간대와 무관하게 한국 날짜를 쓴다.
+function todayKST() {
+  return new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10);
+}
+// YYYY-MM-DD 에 며칠을 더하거나 뺀다. UTC 자정을 기준점으로만 쓰므로 시간대 영향이 없다.
+function addDays(ymd, n) {
+  const d = new Date(ymd + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
 // ── 시세 추이 그래프 (데이터농사 축적 데이터, /trend) ─────────
 // 수집 품목만 그래프가 있고, 없는 품목은 조용히 숨긴다.
 const trendCache = {};   // 품목 → days[] 또는 null(데이터 없음)
@@ -1201,8 +1215,8 @@ function updateFavDateChip() {
   const d  = new Date(favDate + 'T00:00:00');
   const mm = d.getMonth() + 1;
   const dd = d.getDate();
-  const today = new Date().toISOString().slice(0, 10);
-  const yest  = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const today = todayKST();
+  const yest  = addDays(today, -1);
   let label = `${mm}/${dd}`;
   if (favDate === today) label = `오늘 ${mm}/${dd}`;
   else if (favDate === yest) label = `어제 ${mm}/${dd}`;
@@ -1210,17 +1224,15 @@ function updateFavDateChip() {
 }
 
 function favMoveDate(delta) {
-  if (!favDate) favDate = selDate || new Date().toISOString().slice(0, 10);
-  const d = new Date(favDate + 'T00:00:00');
-  d.setDate(d.getDate() + delta);
-  favDate = d.toISOString().slice(0, 10);
+  if (!favDate) favDate = selDate || todayKST();
+  favDate = addDays(favDate, delta);
   updateFavDateChip();
 }
 
 function favOpenDate() {
   const inp = document.getElementById('fav-date-input');
   if (!inp) return;
-  inp.value = favDate || selDate || new Date().toISOString().slice(0, 10);
+  inp.value = favDate || selDate || todayKST();
   // 브라우저 내장 달력 팝업 열기 (미지원 브라우저는 focus/click 폴백)
   try {
     inp.showPicker();
@@ -1302,7 +1314,7 @@ function favDelSlot(i, e) {
 function favRun(i) {
   const saved = loadFavs()[i];
   if (!saved) return;
-  selDate   = favDate || selDate || new Date().toISOString().slice(0, 10);
+  selDate   = favDate || selDate || todayKST();
   userDate  = selDate;
   selMarket = (saved.market && saved.market !== 'all') ? saved.market : '110001';  // 옛 '전국전체' 즐겨찾기는 기본 시장으로
   selCorp   = saved.corp   || '';
@@ -1386,11 +1398,11 @@ function updateHeaderClock() {
 
 // ===== 초기화 =====
 document.addEventListener('DOMContentLoaded', () => {
-  const today = new Date();
-  const day = today.getDay();
-  if (day === 0) today.setDate(today.getDate() - 2);
-  if (day === 6) today.setDate(today.getDate() - 1);
-  selDate = today.toISOString().slice(0, 10);
+  // 첫 화면 날짜 — 한국 기준 오늘. 일요일이면 금요일, 토요일이면 금요일로 (경매 휴장)
+  selDate = todayKST();
+  const day = new Date(selDate + 'T00:00:00Z').getUTCDay();
+  if (day === 0) selDate = addDays(selDate, -2);
+  if (day === 6) selDate = addDays(selDate, -1);
   userDate = selDate;
   document.getElementById('date-input-hidden').value = selDate;
   updatePanel();
@@ -1412,20 +1424,16 @@ window.addEventListener('resize', () => { updateSelTreeTop(); fitSelTree(); });
 
 // ===== 날짜 빠른 선택 =====
 function setQuickDate(daysAgo) {
-  const d = new Date();
-  d.setDate(d.getDate() - daysAgo);
-  selDate = d.toISOString().slice(0, 10);
+  selDate = addDays(todayKST(), -daysAgo);
   userDate = selDate;
   document.getElementById('date-input-hidden').value = selDate;
   refreshOptions();
 }
 
 function updateDateQuickBtns() {
-  const today = new Date();
+  const today = todayKST();
   for (let i = 0; i < 3; i++) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - i);
-    const ds = d.toISOString().slice(0, 10);
+    const ds = addDays(today, -i);
     const btn = document.getElementById('dq-' + i);
     if (btn) btn.classList.toggle('active', ds === selDate);
   }
@@ -1516,9 +1524,7 @@ async function loadData(autoBack = 0) {
   // 3회 모두 실패: 전일로 자동 대체조회 (최대 3일, all 제외)
   if (!json) {
     if (autoBack < 3 && selMarket !== 'all') {
-      const d = new Date(selDate + 'T12:00:00');
-      d.setDate(d.getDate() - 1);
-      selDate = d.toISOString().slice(0, 10);
+      selDate = addDays(selDate, -1);
       document.getElementById('date-input-hidden').value = selDate;
       updatePanel();
       return loadData(autoBack + 1);
@@ -1543,9 +1549,7 @@ async function loadData(autoBack = 0) {
   // ▼ 당일 데이터가 아직 없으면 자동으로 전날 조회 (최대 3일 전까지)
   //   전국 전체(all)는 API 미지원이므로 날짜를 거슬러도 의미 없음 → 제외
   if (!rows.length && autoBack < 3 && selMarket !== 'all') {
-    const d = new Date(selDate + 'T12:00:00');
-    d.setDate(d.getDate() - 1);
-    selDate = d.toISOString().slice(0, 10);
+    selDate = addDays(selDate, -1);
     document.getElementById('date-input-hidden').value = selDate;
     updatePanel();
     return loadData(autoBack + 1);
@@ -2226,12 +2230,10 @@ async function pfSearch() {
   res.innerHTML = '<div class="pf-loading"><div class="spinner"></div>전국 33개 시장에서 찾는 중…</div>';
 
   // 사용자가 고른 날짜(없으면 오늘)부터 최대 3일 거슬러 조회 (주말·휴장 대비)
-  const base = userDate || selDate || new Date().toISOString().slice(0, 10);
+  const base = userDate || selDate || todayKST();
   let rows = [], total = 0, used = base;
   for (let back = 0; back <= 3; back++) {
-    const d = new Date(base + 'T12:00:00');
-    d.setDate(d.getDate() - back);
-    used = d.toISOString().slice(0, 10);
+    used = addDays(base, -back);
     try {
       const r = await fetchWithTimeout(
         `${WORKER_URL}/?saledate=${used.replace(/-/g, '')}&item=${encodeURIComponent(q)}`, 30000);
