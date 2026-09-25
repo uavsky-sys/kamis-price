@@ -1041,15 +1041,18 @@ async function loadTrend(item, boxId) {
   box.innerHTML = '';
   try {
     const r = await fetch(`${WORKER_URL}/trend?item=${encodeURIComponent(item)}`).then(x => x.json());
-    trendCache[item] = (r.ok && r.days && r.days.length >= 5) ? r.days : null;
+    trendCache[item] = (r.ok && r.days && r.days.length >= 5)
+      ? { days: r.days, skipped: Array.isArray(r.skipped) ? r.skipped : [] }
+      : null;
   } catch { trendCache[item] = null; }
   renderTrend(item, boxId);
 }
 function renderTrend(item, boxId) {
   const box = document.getElementById(boxId);
   if (!box) return;
-  const days = trendCache[item];
-  if (!days) { box.innerHTML = ''; return; }
+  const cached = trendCache[item];
+  if (!cached) { box.innerHTML = ''; return; }
+  const days = cached.days, skipped = cached.skipped || [];
   const last = days[days.length - 1];
   const prev = days[Math.max(0, days.length - 6)]; // 약 1주 전(영업일 기준)
   const pct = prev.avg ? (last.avg - prev.avg) / prev.avg * 100 : 0;
@@ -1063,7 +1066,8 @@ function renderTrend(item, boxId) {
       1주 전보다 <b class="${dir}">${arrow} ${Math.abs(pct).toFixed(1)}%</b>${
       hasBand ? `<span class="trend-band-sum"> · 가격대 ${last.p10.toLocaleString()}~${last.p90.toLocaleString()}원</span>` : ''}</div>
     ${trendSvg(days)}
-    <div class="trend-src">${hasBand ? '<span class="trend-band-key">■</span> 전국 가격대(하위10%~상위10% 물량 기준) · ' : ''}전국 도매시장 경매 자체 집계 · 매일 저녁 갱신</div>
+    <div class="trend-src">${hasBand ? '<span class="trend-band-key">■</span> 전국 가격대(하위10%~상위10% 물량 기준) · ' : ''}전국 도매시장 경매 자체 집계 · 매일 저녁 갱신${
+      skipped.length ? ` · 휴장·물량 미달 ${skipped.length}일 제외(${skipped.slice(-3).map(s => { const [, m, dd] = s.d.split('-'); return `${+m}/${+dd}`; }).join('·')}${skipped.length > 3 ? ' 등' : ''})` : ''}</div>
   </div>`;
 }
 function trendSvg(days) {
