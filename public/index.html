@@ -1553,6 +1553,9 @@ function fetchWithTimeout(url, ms) {
 // ===== 데이터 로드 & 검색 =====
 let fetchSeq = 0;      // 동시 요청 경합 방지 — 마지막 요청만 반영
 let fetchedKey = '';   // 마지막으로 성공한 조회의 조건 키
+// 가락처럼 「시장 전체」가 다 안 오는 시장은 워커가 분류별 진짜 건수를 세어 준다(catCounts).
+// { key:'날짜|시장', total, counts } — 같은 날짜·시장에서 분류를 골라도 다른 분류 건수를 계속 보여 준다.
+let truthCats = null;
 
 // 현재 조건(서버측 필터에 영향을 주는 값들)의 키
 function condKey() {
@@ -1626,6 +1629,15 @@ async function loadData(autoBack = 0) {
 
   rawData = rows;
   lastTotal = parseInt(json?.response?.body?.totalCount) || 0;
+  const cc = json?.response?.body?.catCounts;
+  const tKey = dateStr + '|' + selMarket;
+  if (cc && typeof cc === 'object') {
+    const counts = {};
+    for (const [k, v] of Object.entries(cc)) { const n = parseInt(v, 10); if (n > 0) counts[k] = n; }
+    truthCats = { key: tKey, total: lastTotal, counts };
+  } else if (truthCats && truthCats.key === tKey && selCat && !selItem && lastTotal > 0) {
+    truthCats.counts[selCat] = lastTotal;   // 분류를 골라 새로 받았으면 그 분류 건수는 최신 값으로
+  }
   fetchedCat = selCat; fetchedItem = selItem; fetchedKey = condKey();
   autoBackDays = autoBack;
   backupMode = false;
@@ -1795,6 +1807,20 @@ function filterBase(level) {
   return d; // level === 'kind'
 }
 
+// 지금 날짜·시장의 진짜 분류 건수 (없거나 법인을 골랐으면 null — 그땐 받은 자료로 센다)
+function truthNow() {
+  if (!truthCats || selCorp) return null;
+  return truthCats.key === selDate.replace(/-/g, '') + '|' + selMarket ? truthCats : null;
+}
+
+// 분류별 건수: 받은 자료로 세고, 진짜 건수가 있으면 그것으로 덮는다
+function catCountsOf(base) {
+  const counts = {};
+  base.forEach(d => { if (d.cat && d.cat !== '-') counts[d.cat] = (counts[d.cat] || 0) + 1; });
+  const t = truthNow();
+  return t ? { ...counts, ...t.counts } : counts;
+}
+
 // ===== 필터링 & 렌더링 =====
 function filterAndRender() {
   autoFillCat();
@@ -1813,7 +1839,8 @@ function filterAndRender() {
     ? `<strong>${allData.length}건</strong> 조회됨`
     : `전체 <strong>${rawData.length}건</strong> · 분류·품목을 선택하세요`;
   if (lastTotal > rawData.length) {
-    info += ` · <span style="color:#e65100">전체 ${lastTotal.toLocaleString()}건 중 ${rawData.length.toLocaleString()}건 표시 — 분류·품목으로 좁혀 주세요</span>`;
+    const tip = (!selCat && !selItem && truthNow()) ? '아래 분류를 고르면 그 분류는 전부 나옵니다' : '분류·품목으로 좁혀 주세요';
+    info += ` · <span style="color:#e65100">전체 ${lastTotal.toLocaleString()}건 중 ${rawData.length.toLocaleString()}건 표시 — ${tip}</span>`;
   }
   if (autoBackDays > 0 && rawData.length) {
     info += ` · <span style="color:#e65100">당일 데이터가 없어 ${selDate.replace(/-/g,'.')} 조회</span>`;
@@ -1837,9 +1864,8 @@ function renderSelectionTree() {
   filterBase('corp').forEach(d => { if(d.corp&&d.corp!=='-') corpCounts[d.corp]=(corpCounts[d.corp]||0)+1; });
   const corpList = Object.keys(corpCounts).sort();
 
-  // 분류별 카운트 (선택된 법인 기준)
-  const catCounts = {};
-  filterBase('cat').forEach(d => { if(d.cat&&d.cat!=='-') catCounts[d.cat]=(catCounts[d.cat]||0)+1; });
+  // 분류별 카운트 (선택된 법인 기준, 잘린 시장은 진짜 건수)
+  const catCounts = catCountsOf(filterBase('cat'));
   const catList = Object.keys(catCounts).sort();
 
   // 품목별 카운트 (선택된 법인·분류 기준)
@@ -1932,18 +1958,20 @@ function selectCat(cat) { applyFilter('cat', cat); }
 function renderCatTabs() {
   const el = document.getElementById('cat-tab-bar');
   if (!rawData.length) { el.innerHTML=''; return; }
-  const cats = [...new Set(rawData.map(d=>d.cat))].filter(c=>c&&c!=='-').sort();
+  const counts = catCountsOf(rawData);
+  const cats = Object.keys(counts).sort();
+  const t = truthNow();
   el.innerHTML = '';
   const allTab = document.createElement('button');
   allTab.className = `cat-tab${!selCat?' active':''}`;
-  allTab.innerHTML = `<span>전체</span><span class="cnt">${rawData.length}건</span>`;
+  allTab.innerHTML = `<span>전체</span><span class="cnt">${(t ? t.total : rawData.length).toLocaleString()}건</span>`;
   allTab.addEventListener('click', () => selectCat(''));
   el.appendChild(allTab);
   cats.forEach(c => {
-    const cnt = rawData.filter(d=>d.cat===c).length;
+    const cnt = counts[c];
     const tab = document.createElement('button');
     tab.className = `cat-tab${selCat===c?' active':''}`;
-    tab.innerHTML = `<span>${escHtml(c)}</span><span class="cnt">${cnt}건</span>`;
+    tab.innerHTML = `<span>${escHtml(c)}</span><span class="cnt">${cnt.toLocaleString()}건</span>`;
     tab.addEventListener('click', () => selectCat(c));
     el.appendChild(tab);
   });
@@ -2101,19 +2129,19 @@ function toggleFilter(type, btn) {
     });
   } else if (type === 'cat') {
     const base = filterBase('cat');
-    const counts = {};
-    base.forEach(d => { if(d.cat&&d.cat!=='-') counts[d.cat]=(counts[d.cat]||0)+1; });
+    const counts = catCountsOf(base);
+    const allCnt = truthNow() ? truthNow().total : base.length;
     const dynCats = Object.keys(counts).filter(c => !FIXED_CATS.includes(c)).sort();
     // 규칙5: 데이터가 있는 분류가 맨 위 (건수 많은 순), 없는 분류는 아래에 흐리게
     const allCats = [...FIXED_CATS, ...dynCats]
       .sort((a, b) => (counts[b]||0) - (counts[a]||0) || a.localeCompare(b, 'ko'));
     html = `<div class="fd-item${!selCat?' active':''}" data-type="cat" data-val="">
-      <span>전체</span><span class="cnt">${base.length}건</span></div>`;
+      <span>전체</span><span class="cnt">${allCnt.toLocaleString()}건</span></div>`;
     allCats.forEach(c => {
       const cnt = counts[c] || 0;
       html += `<div class="fd-item${selCat===c?' active':''}" data-type="cat" data-val="${escAttr(c)}"
         style="${!cnt?'opacity:0.4':''}">
-        <span>${escHtml(c)}</span>${cnt?`<span class="cnt">${cnt}건</span>`:''}
+        <span>${escHtml(c)}</span>${cnt?`<span class="cnt">${cnt.toLocaleString()}건</span>`:''}
       </div>`;
     });
   } else if (type === 'item') {
@@ -2379,7 +2407,7 @@ function renderPfResult() {
     <div class="pf-date-line">📅 <b>${dd.getMonth() + 1}/${dd.getDate()}(${yoil})</b> 기준 ·
       <b>${escHtml(pfItem)}</b> 전국 <b>${pfTotal.toLocaleString()}건</b></div>
     <div id="pf-trend"></div>
-    ${trunc ? `<div class="pf-warn">⚠ 건수가 많아 ${pfRows.length.toLocaleString()}건 기준으로 집계했습니다 — 품종을 고르면 더 정확해집니다</div>` : ''}
+    ${trunc ? `<div class="pf-warn">⚠ 건수가 많아 ${pfRows.length.toLocaleString()}건만 받아 집계했습니다 — 빠진 시장이 있을 수 있습니다. 시장을 누르면 그 시장 시세는 전부 나옵니다</div>` : ''}
     <div class="pf-sec-title">🌿 품종 (건수순)</div>
     <div class="pf-pop">${kindChips}</div>
     <div class="pf-sec-title">🏬 시장별 건수 — 누르면 그 시장 시세가 열립니다</div>
