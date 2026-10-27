@@ -108,7 +108,7 @@ header {
   border-bottom: 1px solid var(--border);
 }
 .date-bar-label {
-  font-size: 10px; font-weight: 800; color: var(--sub);
+  font-size: 11px; font-weight: 800; color: var(--sub);
   white-space: nowrap; flex-shrink: 0;
 }
 /* 3D 날짜 버튼 */
@@ -214,7 +214,7 @@ header {
 .filter-btn:nth-child(6):active { box-shadow: 0 1px 0 #004d40, 0 3px 5px rgba(0,0,0,0.15); }
 
 .fb-label {
-  font-size: 8px; color: rgba(255,255,255,0.72);
+  font-size: 11px; color: rgba(255,255,255,0.72);
   display: block; margin-bottom: 3px;
   font-weight: 700; letter-spacing: 0.2px;
 }
@@ -225,7 +225,7 @@ header {
   max-width: 54px;
   text-shadow: 0 1px 3px rgba(0,0,0,0.3);
 }
-.fb-count { font-size: 8px; color: rgba(255,255,255,0.65); display: block; margin-top: 2px; }
+.fb-count { font-size: 11px; color: rgba(255,255,255,0.65); display: block; margin-top: 2px; }
 
 /* 3D 검색 버튼 */
 .search-btn {
@@ -361,7 +361,7 @@ header {
 .trend-sum b.up { color: #c62828; }
 .trend-sum b.down { color: #1565c0; }
 .trend-card svg { width: 100%; max-width: 480px; height: auto; display: block; margin: 4px auto 0; }
-.trend-src { font-size: 9.5px; color: #9aa89a; text-align: right; margin-top: 2px; }
+.trend-src { font-size: 11px; color: #9aa89a; text-align: right; margin-top: 2px; }
 .trend-band-sum { color: #4a6b4a; }
 /* KAMIS 소매가 한 줄 (추이 카드 아래쪽, 추이가 없는 품목이면 이 줄만) */
 .retail-line { font-size: 12px; color: #333; margin-top: 6px; padding-top: 6px; border-top: 1px dashed #cfe3cf; line-height: 1.5; }
@@ -374,13 +374,13 @@ header {
 .results-divider {
   background: linear-gradient(135deg, #155225 0%, #2d8a4a 100%);
   color: #fff; padding: 6px 14px;
-  font-size: 10px; font-weight: 800; letter-spacing: 0.3px;
+  font-size: 11px; font-weight: 800; letter-spacing: 0.3px;
   display: flex; align-items: center; gap: 6px;
   flex-shrink: 0;
 }
 .st-title {
   padding: 6px 14px 6px;
-  font-size: 10px; font-weight: 800; color: var(--green);
+  font-size: 11px; font-weight: 800; color: var(--green);
   letter-spacing: 0.3px; border-bottom: 1px solid var(--border);
   display: flex; align-items: center; justify-content: space-between;
   cursor: pointer; user-select: none;
@@ -388,7 +388,7 @@ header {
 .st-toggle-btn {
   background: linear-gradient(to bottom, #fff, #f0f7f2);
   border: 1px solid var(--green2); border-radius: 12px;
-  color: var(--green); font-size: 10px; font-weight: 800;
+  color: var(--green); font-size: 11px; font-weight: 800;
   padding: 3px 10px; cursor: pointer; font-family: inherit;
   box-shadow: 0 2px 0 #8fbd9a;
   pointer-events: none;
@@ -400,7 +400,7 @@ header {
   overflow: hidden;
   max-height: 260px;   /* JS에서 viewport 기준으로 덮어씀 */
   overflow-y: auto;
-  transition: max-height 0.3s ease, opacity 0.2s ease, padding 0.3s ease;
+  transition: opacity 0.2s ease;   /* 높이·여백은 움직이지 않는다(움직이면 아래 표가 덜컹거림) — 서서히 나타나기만 */
   padding: 6px 0 10px;
   opacity: 1;
 }
@@ -429,7 +429,7 @@ header {
 .st-indent3::before { left: 54px; }
 .st-indent4::before { left: 70px; }
 .st-label {
-  font-size: 10px; color: var(--sub); font-weight: 800;
+  font-size: 11px; color: var(--sub); font-weight: 800;
   min-width: 26px; flex-shrink: 0; letter-spacing: 0.2px;
   padding-top: 5px;
 }
@@ -466,8 +466,8 @@ header {
   box-shadow: 0 2px 0 #c0c0c0, 0 2px 4px rgba(0,0,0,0.06);
   text-shadow: none;
 }
-.st-cnt { font-size: 10px; opacity: 0.72; }
-.st-cnt-outline { font-size: 10px; opacity: 0.7; }
+.st-cnt { font-size: 11px; opacity: 0.72; }
+.st-cnt-outline { font-size: 11px; opacity: 0.7; }
 .st-clear {
   background: none; border: none; color: rgba(255,255,255,0.75);
   cursor: pointer; font-size: 14px; line-height: 1; padding: 0 0 0 2px;
@@ -489,7 +489,7 @@ thead th {
   position: sticky; top: 0; background: #f4f8f4; z-index: 9;
   border-bottom: 2px solid var(--border); padding: 6px 3px;
   text-align: center; font-weight: 700; white-space: nowrap;
-  color: var(--sub); font-size: 10px;
+  color: var(--sub); font-size: 11px;
 }
 tbody tr { border-bottom: 1px solid #f0f0f0; }
 tbody tr:hover { background: #f7fdf8; }
@@ -509,7 +509,7 @@ tbody td { padding: 6px 3px; text-align: center; vertical-align: middle; line-he
   border-top: 2px solid #18723a;
 }
 .total-bar .tb-item { display: inline-flex; align-items: baseline; gap: 4px; white-space: nowrap; }
-.total-bar .tb-label { color: #9fd9b3; font-size: 10px; }
+.total-bar .tb-label { color: #9fd9b3; font-size: 11px; }
 .total-bar .tb-val { font-weight: 800; font-size: 14px; }
 .total-bar .tb-val.big { color: #ffe082; }
 .total-bar .tb-sep { color: #2e7d4f; }
@@ -539,7 +539,7 @@ tbody td { padding: 6px 3px; text-align: center; vertical-align: middle; line-he
   transition: transform .08s, box-shadow .08s;
 }
 .err-retry:active { transform: translateY(2px); box-shadow: 0 0 0 #0d4020; }
-.err-code { font-size: 10.5px; color: #bbb; margin-top: 11px; }
+.err-code { font-size: 11px; color: #bbb; margin-top: 11px; }
 
 /* ===== 토스트 알림 (즐겨찾기 저장 확인 등) ===== */
 .toast {
@@ -597,7 +597,7 @@ tbody td { padding: 6px 3px; text-align: center; vertical-align: middle; line-he
   content: ''; position: absolute; bottom: 0; left: 0; right: 0;
   height: 3px; background: #a5d6a7; border-radius: 2px 2px 0 0;
 }
-.cat-tab .cnt { font-size: 9px; opacity: 0.65; display: block; margin-top: 2px; }
+.cat-tab .cnt { font-size: 11px; opacity: 0.65; display: block; margin-top: 2px; }
 
 /* 숨긴 날짜 입력 */
 #date-input-hidden { position: fixed; top: -100px; opacity: 0; pointer-events: none; }
@@ -695,7 +695,7 @@ tbody td { padding: 6px 3px; text-align: center; vertical-align: middle; line-he
 .mb-chip { background: #2D6A4F; color: #fff; border-radius: 8px; padding: 6px 4px; font-size: 12px;
   font-weight: 600; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   border: 0; font-family: inherit; cursor: pointer; }
-.mb-chip small { display: block; font-size: 9px; color: #A7D7BD; font-weight: 400; margin-bottom: 1px; }
+.mb-chip small { display: block; font-size: 11px; color: #A7D7BD; font-weight: 400; margin-bottom: 1px; }
 .mb-search { grid-column: 4; grid-row: 1 / span 2; background: #37474F; color: #fff; border: 0;
   border-radius: 10px; font-size: 16px; font-weight: 800; font-family: inherit; cursor: pointer; }
 @media (max-width: 760px) {
@@ -719,7 +719,8 @@ tbody td { padding: 6px 3px; text-align: center; vertical-align: middle; line-he
   col:nth-child(5) { width: 14% !important; }   /* 규격 */
   col:nth-child(6) { width: 25% !important; }   /* 경락가 */
   tbody td { padding: 13px 2px !important; }
-  tbody td:nth-child(1) { white-space: nowrap; font-size: 10.5px !important; }
+  tbody td:nth-child(1) { white-space: nowrap; font-size: 11px !important; }
+  tbody tr.empty-row td { white-space: normal; font-size: 13px !important; }   /* 안내·오류 줄은 날짜 칸 규칙을 받지 않는다 */
   tbody td:nth-child(3) { white-space: nowrap; text-overflow: ellipsis; }
 }
 
@@ -2027,9 +2028,9 @@ function makeCells(d) {
   const finalName = (d.kindN && d.kindN !== '-') ? d.kindN : d.item;
   return `<td style="font-size:11px;color:var(--sub)" title="${escAttr((d.dtDate || '') + ' ' + (d.dtTime || d.time))}">${escHtml((d.dtDate || '').slice(5) || '-')}</td>
     <td><span class="td-item" title="${escAttr(d.item + ' / ' + d.kind)}">${escHtml(finalName)}</span></td>
-    <td style="font-size:10px;color:var(--sub)" title="${escAttr(d.orig)}">${escHtml(loc)}</td>
-    <td style="font-size:10px">${qty}</td>
-    <td style="font-size:10px;color:var(--sub)">${escHtml(d.grade)}</td>
+    <td style="font-size:11px;color:var(--sub)" title="${escAttr(d.orig)}">${escHtml(loc)}</td>
+    <td style="font-size:11px">${qty}</td>
+    <td style="font-size:11px;color:var(--sub)">${escHtml(d.grade)}</td>
     <td class="td-price">${d.price.toLocaleString()}원</td>`;
 }
 
@@ -2110,7 +2111,7 @@ function toggleFilter(type, btn) {
     MARKETS.forEach(m => {
       html += `<div class="fd-item${selMarket===m.code?' active':''}" data-type="market" data-val="${escAttr(m.code)}">
         <span>${escHtml(m.name)}</span>
-        <span style="font-size:10px;color:#aaa">${escHtml(m.region)}</span>
+        <span style="font-size:11px;color:#aaa">${escHtml(m.region)}</span>
         ${selMarket===m.code?'<span style="color:var(--green)">✔</span>':''}
       </div>`;
     });
